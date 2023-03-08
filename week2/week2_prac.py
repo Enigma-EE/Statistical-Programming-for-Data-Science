@@ -1,27 +1,35 @@
-# %% [markdown]
+#!/usr/bin/env python
+# coding: utf-8
+
 # ### prac week02
 # ### Exercise 1: Loops
 
-# %% [markdown]
 # 1. Use a for loop to print the numbers 1 to 10 to the screen. Now write this using a while loop.
 
-# %%
+# In[6]:
+
+
 # Use a for loop to print the numbers 1 to 10
 for i in range(1,11):
     print(i, end=' ')
 
-# %%
+
+# In[7]:
+
+
 # Use a while loop to print the numbers 1 to 10
 i = 1
 while i <= 10:
     print(i, end=' ')
     i += 1
 
-# %% [markdown]
+
 # 2. Use a while loop to print the temperature along with the statement “The Weather is Fine!” for as long as the temperature is between 20 and 30 degrees. To simulate the weather, you can use the randint() function from the random module, with the lower bound set to 16 and the upper bound to 40
 # 
 
-# %%
+# In[8]:
+
+
 import random
 # use a while loop to print the temperature
 i = random.randint(16, 40)
@@ -32,7 +40,10 @@ while i >= 20 and i <= 30: # 20 <= i <= 30
 else:
     print('The Weather is not Fine!')
 
-# %%
+
+# In[9]:
+
+
 # use a for loop to print the temperature
 i = random.randint(16, 40)
 print('The value of i is : ', i)
@@ -45,7 +56,9 @@ else:
     print('The Weather is not Fine!')
 
 
-# %%
+# In[10]:
+
+
 # use a if statement to print the temperature
 i = random.randint(16, 40)
 print('The value of i is : ', i)
@@ -55,14 +68,15 @@ else:
     print('The Weather is not Fine!')
     
 
-# %% [markdown]
+
 # 3. Why can’t you implement this as a for loop?
 # 
 
-# %% [markdown]
 # 4. Use a for/while loop to print the days of the week
 
-# %%
+# In[19]:
+
+
 # get weekdays using calendar module
 import calendar
 days = calendar.weekheader(3).split()
@@ -70,7 +84,10 @@ for day in days:
     print(day, end=' ')
     
 
-# %%
+
+# In[14]:
+
+
 # use a while loop print the days of the week
 days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -79,16 +96,17 @@ while index < len(days_of_week):
     print(days_of_week[index], end=' ')
     index += 1
 
-# %% [markdown]
+
 # ### Exercise 2: Loops and Input Processing
 
-# %% [markdown]
 # 1. Prompts the user to enter five comma-separated integer numbers.
 # 2. Prints an error message if the user enters less than 5 numbers.
 # 3. Outputs the sum of these numbers to the screen.
 # 4. Outputs the number of valid values used in producing the cumulative sum.
 
-# %%
+# In[25]:
+
+
 number_int = input('Enter five comma-separated integer numbers: ')
 number_list = number_int.split(',')
 # if the user enters not numbers,treat as NaN and exclude from the sum
@@ -106,7 +124,10 @@ else:
 # Outputs the number of valid values used in producing the cumulative sum
 print('The number of valid values used in producing the cumulative sum is: ', len(number_list))
 
-# %%
+
+# In[2]:
+
+
 nums = input('Enter five comma-separated numbers: ')
 nums = nums.split(',')
 
@@ -128,7 +149,10 @@ print('The sum of the numbers is: ', sum(good_nums))
 print('The number of valid values used in producing the cumulative sum is: ', len(good_nums))
 print('The invalid values are: ', bad_nums)
 
-# %%
+
+# In[7]:
+
+
 nums = input('Enter five comma-separated numbers: ')
 nums = nums.split(',')
 
@@ -148,8 +172,11 @@ print('The sum of the numbers is: ', sum(nums))
 print('The number of valid values used in producing the cumulative sum is: ', len(nums)-nums.count(0))
 print('The invalid values are: ', nums.count(0))
 
-# %%
-# bad code
+
+# In[ ]:
+
+
+''' bad code
 nums = input('Enter five comma-separated numbers: ')
 nums = nums.split(',')
 
@@ -157,8 +184,11 @@ while len(nums) != 5:
     print('You have not entered five numbers')
     nums = input('Enter five comma-separated numbers: ')
     nums = nums.split(',') 
+'''
 
-# %%
+# In[9]:
+
+
 # loop until the user enters five numbers
 for i in range(5):
     nums = input('Enter five comma-separated numbers: ')
@@ -183,7 +213,10 @@ if len(nums) == 5:
     print('The number of valid values used in producing the cumulative sum is: ', len(nums)-nums.count(0))
     print('The invalid values are: ', nums.count(0))
 
-# %%
+
+# In[10]:
+
+
 while True:
     nums = input('Enter five comma-separated numbers: ')
     nums = nums.split(',')
@@ -204,10 +237,9 @@ print('The sum of the numbers is: ', sum(nums))
 print('The number of valid values used in producing the cumulative sum is: ', len(nums)-nums.count(0))
 print('The invalid values are: ', nums.count(0))
 
-# %% [markdown]
+
 # ### Exercise 3: The mean of a data set
 
-# %% [markdown]
 # Write a script that computes the mean of a user-supplied tuple that contains at least 5 numbers. 
 # 1. Prompts the user to enter at least five comma-separated integer numbers.
 # 2. Check the entry contains numbers. If there are any non-numerical elements treat these element as a NaN.
@@ -216,7 +248,9 @@ print('The invalid values are: ', nums.count(0))
 # genuine numbers into account.
 # 5. Display the original entry, the mean and the number of valid numbers to the screen
 
-# %%
+# In[11]:
+
+
 number_int = input('Enter at least five comma-separated integer numbers: ')
 number_list_0 = number_int.split(',')
 # if the user enters not numbers,treat as NaN and exclude from the sum
@@ -229,10 +263,9 @@ num_mean = sum(number_list) / len(number_list)
 print('The mean of the numbers is: ', float(num_mean))
 print('The original list is: ', number_list_0)
 
-# %% [markdown]
+
 # ### Exercise 4: The standard deviation of a data set
 
-# %% [markdown]
 # Expand the script from Exercise 3 to also compute the standard deviation of the numerical elements. If
 # there are less than 3 numerical elements entered, do not calculate the standard deviation. The full output
 # should now be:
@@ -241,7 +274,9 @@ print('The original list is: ', number_list_0)
 # 3. The standard deviation, if calculated, otherwise display a message telling the user the standard deviation was not able to be calculated.
 # 4. The number of valid numbers.
 
-# %%
+# In[30]:
+
+
 number_int = input('Enter at least five comma-separated integer numbers: ')
 number_list_0 = number_int.split(',')
 print('The original list is: ', number_list_0)
@@ -261,8 +296,9 @@ else:
     print('The standard deviation of the numbers is: ', num_std)
 
 
+# In[42]:
 
-# %%
+
 number_d = input('Enter at least five comma-separated numbers: ')
 number_list_0 = number_d.split(',')
 print('The original list is: ', number_list_0)
@@ -288,11 +324,9 @@ def mean_std_deviation():
 mean_std_deviation()
 
 
-# %% [markdown]
 # ### Exercise 5: Strings
 # 
 
-# %% [markdown]
 # For this exercise, you are asked to write a program that takes a string input from the user, and returns, as
 # output, the entire message minus the vowels (a,e,i,o,u). E.g. if the input message is\
 # **Tim thinks this is a good exercise to try.**\
@@ -300,14 +334,19 @@ mean_std_deviation()
 # **Tm thnks ths s gd xrcs t try**
 # 
 
-# %%
+# In[44]:
+
+
 import re
 string_example = input("Enter a string: ")
 # I added Quiz 2 based on this week material and two examples of Test 1 from previous years
 string_without_vowels = re.sub("[aeiouAEIOU]","",string_example)
 print(string_without_vowels)
 
-# %%
+
+# In[47]:
+
+
 def remove_vowels(string):
   new_string = ""
   for char in string:
@@ -320,16 +359,17 @@ string_example = input("Enter a string: ")
 string_without_vowels = remove_vowels(string_example)
 print(string_without_vowels)
 
-# %% [markdown]
+
 # ### Exercise 6: String-palindrome
 
-# %% [markdown]
 # Write a program that takes, as input, any word or phrase, entered by the user, and determine whether that word or phrase is a palindrome. A palindrome is a word that reads the same in reverse order, 
 # e.g.\
 # • glenelg\
 # • Anna
 
-# %%
+# In[49]:
+
+
 # whether the string is a palindrome
 string_1 = input('Enter a string: ')
 # convert the string to lowercase and remove the spaces
@@ -340,7 +380,10 @@ if string_2 == string_2[::-1]:# slice the string from the end to the beginning
 else:
     print('The string is not a palindrome')
 
-# %%
+
+# In[17]:
+
+
 text = 'Amore roma'
 
 text = text.lower()
@@ -353,7 +396,10 @@ for cnt in text:
 my_text = text_clean[::-1]
 text_clean == my_text
 
-# %%
+
+# In[18]:
+
+
 text = 'Amore roma'
 
 text = text.lower()
@@ -372,10 +418,9 @@ if text_clean == my_text:
 else:
     print("The string is not a palindrome")
 
-# %% [markdown]
+
 # ### Exercise 7: Game 21
 
-# %% [markdown]
 # For this simplified version of the game, the cards drawn can take values 2 through to 11. Your code should:
 # 1. Prompt the player to draw one card and display the value of the card drawn.
 # 2. Ask whether they want to draw another card, or finish their game.
@@ -383,7 +428,9 @@ else:
 # 4. If the user chooses to draw another card, then if the sum of the cards drawn to date plus the newly drawn card exceeds 21, output the sum and a loser’s message. Otherwise go to step 2 above.
 # 5. If you would like an extra challenge, then treat the value of 11 as the Ace card. This means that thecard can then either take on the value of 11, or the value of 1. If the user draws 11 and the value of 11 will cause them to lose, change the value to 1. Otherwise, keep the value of the card drawn as 11.
 
-# %%
+# In[74]:
+
+
 # 1
 
 import random
@@ -415,7 +462,10 @@ if sum_cards > 21:
 else:
     print('You have reached a total of', str(sum_cards) + '.')
 
-# %%
+
+# In[76]:
+
+
 # 2 - without break statement and using a boolean variable
 #   - change the value of 11 to 1 if the sum exceeds 21
 import random
@@ -441,6 +491,4 @@ while playing: # while loop to keep drawing cards until the sum exceeds 21 or us
         if draw_again.lower() == 'n':
             print(f"The total sum of cards drawn is: {sum_card}")
             playing = False # exit the while loop
-
-
 
