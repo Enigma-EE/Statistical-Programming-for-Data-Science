@@ -1,0 +1,160 @@
+---
+title: |
+  | COMP5070_SP2_2023
+  | week12
+author: "Enna H"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+Ctrl + c
+
+
+```{r echo = FALSE, include=FALSE}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 8, 
+  fig.asp = 0.618, 
+  out.width = "80%",
+  fig.align = "center", 
+  root.dir = "../",
+  message = FALSE,
+  size = "small"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+pacman::p_load(ggplot2,ggpubr,ggthemes,gridExtra,scales)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(shiny, shinydashboard, shinyWidgets, shinyjs, shinyBS, shinyalert, shinyFiles, shinyFeedback, shinyjqui, shinyMobile, shinythemes, shinytoastr, shinyWidgets,DT)
+pacman::p_load(dashboardthemes)
+```
+
+
+
+```{r}
+# Generate sample data
+set.seed(123)
+dates <- seq(as.Date("2023-01-01"), as.Date("2023-12-31"), by = "day")
+states <- c("nsw", "sa", "vic", "qld", "wa", "tas", "nt", "act")
+
+sample_data <- data.frame(
+  DATE = rep(dates, length(states)),
+  STATE = rep(states, each = length(dates)),
+  CASES = sample(0:100, length(dates) * length(states), replace = TRUE)
+)
+
+# Convert DATE column to date format
+sample_data$DATE <- as.Date(sample_data$DATE)
+
+# Define UI
+ui <- fluidPage(
+  h1("COVID-19 Cases by State"),
+  fluidRow(
+    column(
+      width = 2,
+      wellPanel(
+        dateRangeInput(
+          inputId = "daterange",
+          label = h3("Date Range"),
+          start = min(sample_data$DATE),
+          end = max(sample_data$DATE),
+          min = min(sample_data$DATE),
+          max = max(sample_data$DATE)
+        ),
+        checkboxGroupInput(
+          inputId = 'state',
+          label = h3("State"),
+          choices = list("NSW" = "nsw", "SA" = "sa", "VIC" = "vic", "QLD" = "qld", "WA" = "wa", "TAS" = "tas", "NT" = "nt", "ACT" = "act"),
+          selected = c("nsw", "sa", "vic", "qld", "wa", "tas", "nt", "act")
+        ),
+        numericInput(
+          "num",
+          label = h3("Upper limit for boxplot"),
+          value = 160
+        ),
+        radioButtons(
+          "scale",
+          label = h3("Scale"),
+          choices = list("Linear" = 1, "Log10" = 2),
+          selected = 1
+        )
+      )
+    ),
+    column(
+      width = 5,
+      plotOutput(outputId = "lineplot", width = "100%")
+    ),
+    column(
+      width = 5,
+      plotOutput(outputId = "boxplot", width = "100%")
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+  output$lineplot <- renderPlot({
+    df <- sample_data %>%
+      filter(
+        STATE %in% input$state,
+        DATE >= input$daterange[1] & DATE <= input$daterange[2]
+      )
+    
+    ggplot(df, aes(x = DATE, y = CASES, color = STATE)) +
+      geom_line() +
+      ggtitle("COVID-19 Cases by State") +
+      ylab("Total cases per week") +
+      scale_y_log10(labels = scales::comma)
+  })
+
+  output$boxplot <- renderPlot({
+    df <- sample_data %>%
+      filter(
+        STATE %in% input$state,
+        DATE >= input$daterange[1] & DATE <= input$daterange[2]
+      )
+    
+    graph1 <- ggplot(df, aes(x = STATE, y = CASES, fill = STATE)) +
+      geom_boxplot() +
+      ggtitle("COVID-19 Cases by State") +
+      ylab("Total cases per week") +
+      ylim(0, input$num)
+
+    if (input$scale == 1) {
+      print(graph1)
+    } else {
+      print(graph1 + scale_y_log10(labels = scales::comma))
+    }
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+```

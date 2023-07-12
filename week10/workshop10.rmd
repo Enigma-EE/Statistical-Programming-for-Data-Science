@@ -1,0 +1,171 @@
+---
+title: |
+  | COMP5070_SP2_2023
+  | Statistical Programming for Data Science
+author: "E"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 6, 
+  fig.asp = 0.618, 
+  out.width = "70%",
+  fig.align = "center", 
+  root.dir = "../"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+```
+
+
+
+
+```{r}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+----------------------------------------------------------
+
+```{r}
+df <- iris
+head(df, 10)
+```
+
+```{r}
+plot(df$Sepal.Length)
+```
+
+
+```{r}
+unique(df$Species)
+```
+
+```{r} 
+plot(df$Sepal.Length, type = "l", col = "red")
+```
+
+```{r}
+plot(x = df$Sepal.Length, y = df$Sepal.Width)
+```
+
+```{r}
+plot(x = df$Sepal.Length, y = df$Sepal.Width, col = df$Species,
+     xlab = "Sepal Length, cm", ylab = "Sepal Width, cm",
+     main = "Relationship between Sepal Length and Width",
+     ylim = c(0,5))
+legend(x = "topright", legend = unique(df$Species), col = 1:length(df$Species), pch = 1)
+
+points(x = df$Petal.Length, y = df$Petal.Width, col = "blue", pch = 16, cex = 3)
+
+lines(x = c(5,7), y = c(2,4), col = "red", lty = 3, lwd = 3)
+
+abline(h = 3, col = "red", lwd = 6, lty = 4)     
+```     
+
+```{r}
+hist(df$Sepal.Length)
+
+abline(v = mean(df$Sepal.Length), col = "red", lty = 3)
+```
+
+```{r}
+boxplot(Sepal.Length ~ Species, data = df)
+
+abline(h = mean(df$Sepal.Length), col = "red", lty = 3)
+
+abline(v = c(1.5, 2.5), col = "blue")
+lines(x = c(1,2,3), 
+      y = group_by(df, Species) %>% summarise(m = mean(Sepal.Length)) %>% pull(m),
+      col = "green", lwd = 3, lty = 2)
+```
+
+# ggplot() 
+
+
+```{r}
+ggplot(data = df, mapping = aes(x = Sepal.Length,
+                                y = Sepal.Width,
+                                colour = Species)) +
+  ggtitle("Relationship between Sepal Length and Width") +
+  xlab("Length, cm") + ylab("Width, cm")  +
+  geom_point(size = 10, alpha = 0.5) +
+  geom_point(mapping = aes(x = Petal.Length, y = Petal.Width)) +
+  geom_hline(yintercept = 3, size = 5)
+
+```                         
+
+
+
+
+
+
+
+```{r}
+ggplot(data = df, mapping = aes(x = Sepal.Length,
+                                y = Sepal.Width,
+                                colour = Species, size = Petal.Length,
+                                shape = Species)) + 
+  geom_point(alpha = 0.5)  + geom_smooth(method = "lm", se = FALSE) 
+
+```
+
+```{r}
+df %>% ggplot(aes(x = Sepal.Length)) +
+  geom_histogram()
+```
+
+?geom_histogram
+
+
+# bins = 20, breaks = seq(4,8,0.2), binwidth = 0.2
+
+```{r}
+df %>% ggplot(mapping = aes(x = Sepal.Length)) +
+  geom_histogram() + facet_grid(rows = vars(Species))
+```
+
+
+```{r}
+df %>% ggplot(aes(x = Sepal.Length, y = Species)) + 
+  geom_boxplot() +
+  geom_jitter()         # height = 0.1, width = 0.1
+```
+
+```{r}
+gr1 <- df %>% ggplot(aes(x = Sepal.Length, y = Species)) + 
+  geom_boxplot() + geom_jitter()
+
+gr2 <- ggplot(df, aes(x = Sepal.Length, y = Sepal.Width, colour = Species)) +
+  geom_point(size = 2) + geom_smooth()
+
+print(gr1)
+
+```
+
+```{r}
+print(gr2)
+```
+
+
+

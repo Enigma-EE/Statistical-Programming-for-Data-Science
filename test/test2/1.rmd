@@ -1,0 +1,39 @@
+
+
+
+```{r}
+x <- runif(10)
+x < 0.3
+x
+sum(x < 0.3)
+```
+
+```{r}
+x <- runif(1000)
+sum(x < 0.3)
+```
+
+indexing
+```{r}
+z <- which(x < 0.3)
+z
+```
+
+
+```{r}
+states <- c('nsw', 'qld', 'sa', 'tas', 'vic', 'wa')
+
+for(i in states){
+  name_case <- 'case' + i + '.tsv'
+  name_death <- 'death' + i + '.tsv'
+}
+```
+
+```{r}
+df <- mtcars
+# transform mpg to log scale to make it a bit more linear
+plot(log(df$mpg), df$hp)
+```
+
+```{r}
+```

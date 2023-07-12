@@ -1,0 +1,205 @@
+---
+title: |
+  | STATS 3001 / STATS 4104 / STATS 7054
+  | Statistical Modelling III
+  | Exam
+author: "E"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 6, 
+  fig.asp = 0.618, 
+  out.width = "70%",
+  fig.align = "center", 
+  root.dir = "../"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr)
+
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+```
+
+```{r}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+# loading data
+```{r}
+# load mtcars data
+data(mtcars)
+# show the data in the dataframe
+mtcars
+```
+
+readr::read_csv("mtcars.csv")
+getwd()
+save(mtcars, file = "mtcars.RData")
+load("mtcars.RData")
+
+
+# Apply family -----------------------------------------------------------------
+
+```{r}
+m <- matrix(1:12, 3, 4)
+m
+```
+```{r}
+sum(m)
+# apply function to each row
+apply(m, 1, sum)
+# apply function to each column
+apply(m, 2, sum)
+# apply function to each row
+rowSums(m)
+```
+```{r}
+apply(m, 1, mean)
+rowMeans(m)
+```
+```{r}
+apply(m, 2, sqrt)
+```
+```{r}
+# apply is for matrices
+apply(mtcars, 2, mean)
+```
+
+```{r}
+# sapply is for vectors
+sapply(mtcars, mean)
+```
+
+```{r}
+# lapply is for lists
+lapply(mtcars, mean)
+```
+
+# Descriptive statistics 
+```{r}
+summary(mtcars)
+summary(mtcars[,c('mpg', 'wt')])
+```
+
+```{r}
+mean(mtcars$mpg)
+sd(mtcars$mpg)
+moments::skewness(mtcars$mpg)
+moments::kurtosis(mtcars$mpg)
+quantile(mtcars$mpg)
+```
+
+```{r}
+table(mtcars$cyl)
+temp <- table(mtcars$cyl)
+names(temp)
+unique(mtcars$cyl)
+```
+
+```{r}
+table(mtcars$cyl, mtcars$gear)
+```
+
+# Data visualisation 
+
+```{r}
+df <- dslabs::us_contagious_diseases
+
+head(df)
+
+names(df)
+
+dim(df)
+```
+?dslabs::us_contagious_diseases
+
+```{r}
+plot(df$population, df$count)
+```
+
+```{r}
+plot(df$population, df$count, type = "l")
+```
+
+```{r}
+x <- df$year == 1970
+dfx <- df[x, ]
+```
+
+
+```{r}
+plot(df[df$year == 1970, c("population", "count")])
+```
+
+```{r}
+plot(df[df$year == 1970 & df$disease == "Hepatitis A", c("population", "count")])
+```
+
+```{r}
+plot(df[df$year == 1970 & df$disease == "Hepatitis A", c("population", "count")],
+     main = "Count of Hepatitis A cases in 1970",
+     xlab = "Population", ylab = "Number of cases", col='blue')
+```
+
+```{r}
+# plot the count of Hepatitis A cases in Alabama
+df_small <- df[df$disease == "Hepatitis A" & df$state == "Alabama", c("year", "count")]
+plot(df_small, type = 'l', main = "Count of Hepatitis A cases in Alabama",
+     xlab = "Year", ylab = "Number of cases", col='blue')
+```
+
+```{r}
+# aggregate the data by disease
+disease_cases <- aggregate(df$count, by = list(df$disease), FUN = sum)
+# rename the columns, so that they are more meaningful
+names(disease_cases) <- c("disease", "count")
+# plot the count of cases by disease
+barplot(count ~ disease, data = disease_cases)
+```
+
+```{r}
+pie(disease_cases$count, labels = disease_cases$disease)
+```
+
+```{r}
+# normalise by population
+df$case_per_million <- df$count / df$population * 10^6
+# select the data for measles in 1970
+case_per_million <- df[df$disease == "Measles" & df$year == 1970, c("case_per_million")]
+
+boxplot(case_per_million)
+```
+
+```{r}
+hist(case_per_million)
+# add a vertical line for the mean
+abline(v = mean(case_per_million), col = "red")
+# add a vertical line for the median
+abline(v = median(case_per_million), col = "blue")
+```
+
+```{r}
+boxplot(case_per_million)
+abline(h = mean(case_per_million), col = "red")
+```

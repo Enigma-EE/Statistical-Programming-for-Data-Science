@@ -1,0 +1,188 @@
+
+# Exercise 2 -------------------------------------------------------------------
+Control flow operators, Functions, Packages
+Please try to complete tasks listed below. Type your code in each section.
+
+
+
+clean up global environment
+```{r}
+rm(list = ls())
+```
+
+
+### Task 1 ---------------------------------------------------------------------
+
+Air temperature above 30 degrees might be considered as "too hot". 
+Temperature below 5 degrees is "too cold". Anything in between is "good".
+Use conditions to take a value of air temperature "Temp" and print
+the corresponding condition: "good" or "too hot" or "too cold".
+
+```{r}
+Temp <- 33    # Try different values to test your code
+if (Temp > 30) {
+  cat("The temperature is too hot.")
+} else if (Temp < 5) {
+  cat("The temperature is too cold.")
+} else {
+  cat("The temperature is good.")
+}
+```
+
+
+
+### Task 2 ---------------------------------------------------------------------
+
+Use the code from Task 1 and convert it into a custom function that takes 
+as an input air temperature "Temp" and outputs the corresponding condition.
+Then use a loop with a function to get conditions for the following values
+of the air temperature and store them as a vector "conditions"
+
+```{r}
+# Define custom function to get condition based on air temperature
+get_condition <- function(Temp) {
+  if (Temp > 30) {
+    return("too hot")
+  } else if (Temp < 5) {
+    return("too cold")
+  } else {
+    return("good")
+  }
+}
+
+# Define vector of air temperatures
+temps <- c(0, 15, 35, 20, -10, 44)
+
+# Use loop with function to get conditions for each temperature
+conditions <- c()
+for (temp in temps) {
+  condition <- get_condition(temp)
+  conditions <- c(conditions, condition)
+}
+
+# Print the conditions vector
+conditions
+```
+
+
+
+
+### Task 3 ---------------------------------------------------------------------
+
+Make a code to re-create a sequence of first 30 Fibonacci numbers
+Every next Fibonacci number equals to the sum of two previous numbers
+1, 1, 2, 3, 5, 8, ...
+
+```{r}
+# Define the first two Fibonacci numbers
+fib <- c(1, 1)
+
+# Loop to generate the next 28 Fibonacci numbers
+for (i in 3:30) {
+  next_fib <- fib[i-1] + fib[i-2]
+  fib <- c(fib, next_fib)
+}
+
+# Print the sequence of Fibonacci numbers
+fib
+```
+
+
+
+### Task 4 ---------------------------------------------------------------------
+
+Do a Google search and find ready-made package and function to output
+Fibonacci numbers. Get first 30 numbers and compare them to your own result.
+
+# Install the numbers package if not already installed
+install.packages("numbers")
+
+
+```{r}
+# Load the numbers package
+library(numbers)
+
+# Generate the first 30 Fibonacci numbers
+fib <- numeric(30)
+for (i in 1:30) {
+  fib[i] <- fibonacci(i)
+}
+
+expected_result <- c(1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 
+                     610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657,
+                     46368, 75025, 121393, 196418, 317811, 514229, 832040)
+# Compare the generated Fibonacci numbers with the expected result
+identical(fib, expected_result)
+```
+
+
+
+### Task 5 ---------------------------------------------------------------------
+
+Take a sequence of normally distributed random numbers as below and 
+count how many times the value in sequence is greater than 2 or less than -2.
+Make 4 versions of the code by using: 
+(1) for loop; (2) while loop; (3) repeat loop; (4) no loop
+
+X <- rnorm(1000)
+
+## 1 for loop
+
+```{r}
+X <- rnorm(1000)
+count <- 0
+
+for (i in 1:length(X)) {
+  if (X[i] > 2 || X[i] < -2) {
+    count <- count + 1
+  }
+}
+
+count
+```
+
+
+## 2 while loop
+
+```{r}
+X <- rnorm(1000)
+count <- 0
+i <- 1
+
+while (i <= length(X)) {
+  if (X[i] > 2 || X[i] < -2) {
+    count <- count + 1
+  }
+  i <- i + 1
+}
+
+count
+```
+
+## 3 repeat loop
+```{r}
+X <- rnorm(1000)
+count <- 0
+i <- 1
+
+repeat {
+  if (X[i] > 2 || X[i] < -2) {
+    count <- count + 1
+  }
+  i <- i + 1
+  
+  if (i > length(X)) {
+    break
+  }
+}
+
+count
+```
+
+## 4 no loop 
+```{r}
+X <- rnorm(1000)
+count <- sum(X > 2 | X < -2)
+
+count
+```

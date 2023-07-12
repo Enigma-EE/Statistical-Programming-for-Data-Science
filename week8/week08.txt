@@ -1,0 +1,299 @@
+
+rm(list=ls())
+gc()
+
+
+# Loading data -----------------------------------------------------------------
+
+
+data <- readLines("mtcars.csv")
+
+df1 <- read.csv("mtcars.csv")
+
+df2 <- readr::read_csv("mtcars.csv")
+
+df3 <- data.table::fread("mtcars.csv")
+
+
+# Writing data -----------------------------------------------------------------
+
+write.csv(df1, file = "mtcars_copy.csv")
+
+readr::write_csv(df1, file = "mtcars_copy.csv")
+
+
+
+save(df1, df2, df3, file = "week8.RData")
+
+load(file = "week8.RData")
+
+
+
+# Apply family -----------------------------------------------------------------
+
+
+m <- matrix(1:12, 3, 4)
+m
+
+sum(m)
+
+apply(m, 1, sum)
+
+apply(m, 2, sum)
+
+
+
+# data frame
+
+apply(df1, 2, mean)
+
+apply(mtcars, 2, mean)
+
+
+head(df1)
+
+head(mtcars)
+
+
+sapply(df1, mean)
+
+lapply(df1, mean)
+
+sapply(df1, function(x) ifelse(is.character(x), "String", mean(x)))
+
+
+
+temp_list <- list(df1, df2, df3)
+
+lapply(temp_list, sapply, mean)
+
+lapply(temp_list, function(x) sapply(x, mean))
+
+
+# Descriptive statistics -------------------------------------------------------
+
+
+summary(df1)
+
+Hmisc::describe(df1)
+
+psych::describe(df1)
+
+
+
+head(df)
+
+mean(df1$mpg)
+
+sd(df1$mpg)
+
+moments::skewness(df1$mpg)
+
+moments::kurtosis(df1$mpg)
+
+table(df1$model)
+
+table(df1$cyl)
+
+table(df1[, c("cyl", "am")])
+
+
+# Data visualisation -----------------------------------------------------------
+
+
+df <- dslabs::us_contagious_diseases
+
+?dslabs::us_contagious_diseases
+
+head(df)
+
+names(df)
+
+dim(df)
+
+
+plot(df$population, df$count)
+
+plot(df[df$year == 1970, c("population", "count")])
+
+plot(df[df$year == 1970 & df$disease == "Hepatitis A", c("population", "count")])
+
+plot(df[df$year == 1970 & df$disease == "Hepatitis A", c("population", "count")],
+     main = "Count of Hepatitis A cases in 1970",
+     xlab = "Population", ylab = "Number of cases")
+
+
+
+df_small <- df[df$disease == "Hepatitis A" & df$state == "Alabama", c("year", "count")]
+
+plot(df_small, type = "l")
+
+
+
+disease_cases <- aggregate(df$count, by = list(df$disease), FUN = sum)
+
+names(disease_cases) <- c("disease", "count")
+
+barplot(count ~ disease, data = disease_cases)
+
+
+
+pie(disease_cases$count, labels = disease_cases$disease)
+
+
+
+df$case_per_million <- df$count / df$population * 10^6
+
+case_per_million <- df[df$disease == "Measles" & df$year == 1970, c("case_per_million")]
+
+boxplot(case_per_million)
+
+hist(case_per_million)
+abline(v = mean(case_per_million), col = "red")
+abline(v = median(case_per_million), col = "blue")
+
+
+boxplot(case_per_million)
+abline(h = mean(case_per_million), col = "red")
+
+
+# Random numbers ---------------------------------------------------------------
+
+x <- rnorm(10)
+hist(x)
+
+x <- rnorm(1000)
+hist(x, breaks = 100)
+
+x <- rnorm(1000, mean = 10, sd = 5)
+hist(x, breaks = 100)
+
+?rnorm
+
+pnorm(c(-2, 0, 2), mean = 0, sd = 1)
+
+qnorm(c(0.025, 0.5, 0.975), mean = 0, sd = 1)
+
+
+
+
+y <- runif(1000)
+hist(y)
+
+y <- runif(12000000)
+hist(y)
+
+yy <- matrix(y, ncol = 12)
+head(yy)
+
+yyy <- apply(yy, 1, sum)
+hist(yyy, breaks = 100)
+
+yyyy <- (yyy - 6)
+hist(yyyy, breaks = 100)
+
+mean(yyyy)
+sd(yyyy)
+quantile(yyyy, c(0.025, 0.5, 0.975))
+
+
+
+# Statistical tests -------------------------------------------------------------
+
+head(df)
+
+
+## t-test
+
+sample1970 <- df$case_per_million[df$year == 1970 & df$disease == "Measles"]
+sample1980 <- df$case_per_million[df$year == 1980 & df$disease == "Measles"]
+
+mean(sample1970)
+mean(sample1980)
+
+hist(sample1970, breaks = seq(0, 1000, 20), col=rgb(0,0,1,1/4))
+hist(sample1980, breaks = seq(0, 1000, 20), col=rgb(1,0,0,1/4), add = TRUE)
+
+t.test(x = sample1970, y = sample1980)
+
+t.test(x = sample1970, y = sample1980, paired = TRUE)
+
+
+
+
+## ANOVA
+
+df_small <- df[df$disease == "Measles", ]
+boxplot(case_per_million ~ year, data = df_small)
+
+
+df$decade <- df$year %/% 10 * 10
+head(df)
+
+df_small <- df[df$disease == "Measles" & df$decade >= 1960, ]
+boxplot(case_per_million ~ decade, data = df_small)
+
+fit <- aov(case_per_million ~ as.factor(decade), data = df_small)
+summary(fit)
+
+TukeyHSD(fit, conf.level = 0.95)
+
+
+
+
+
+## Correlation
+
+cor(x = df_small$population, y = df_small$count)
+
+cor(df_small)
+
+cor(df_small[, -c(1,2)])
+
+cor.test(x = df_small$population, y = df_small$count)
+
+
+
+
+## Linear regression
+
+fit <- lm(count ~ population, data = df_small)
+
+fit
+
+summary(fit)
+
+class(fit)
+typeof(fit)
+
+names(fit)
+
+fit$coefficients
+fit$fitted.values
+
+temp <- summary(fit)
+class(temp)
+typeof(temp)
+
+names(temp)
+temp$coefficients
+temp$r.squared
+
+
+
+
+## Normality test
+
+x <- rnorm(100)
+y <- rt(100, df=5)
+
+shapiro.test(x)
+shapiro.test(y)
+
+ks.test(x, "pnorm", mean = mean(x), sd = sd(x))
+ks.test(y, "pnorm", mean = mean(y), sd = sd(y))
+
+
+
+
+

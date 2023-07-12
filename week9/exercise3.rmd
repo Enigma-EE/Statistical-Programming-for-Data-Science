@@ -1,0 +1,383 @@
+---
+title: |
+  | STATS 3001 / STATS 4104 / STATS 7054
+  | Statistical Modelling III
+  | Exam
+author: "E"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 6, 
+  fig.asp = 0.618, 
+  out.width = "70%",
+  fig.align = "center", 
+  root.dir = "../"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+```
+
+
+
+# Exercises for dplyr  ---------------------------------------------------------
+Vectorisation, apply() function, data manipulations
+
+
+Please try to complete tasks listed below. Type your code and results 
+interpretations in each section.
+
+```{r warning=FALSE, include=FALSE}
+# clean up global environment
+rm(list = ls())
+
+# load the library
+library(dplyr)
+```
+
+### Task 1 ---------------------------------------------------------------------
+
+Load data set "admissions" from the package "dslabs" (you might need to install the package first). Check the data set, check the help file for the data. Use apply function to get type of data for each variable.
+Provide your comment about the data.
+```{r}
+library(dslabs)
+data(admissions)
+str(admissions)
+apply(admissions,2,class)
+```
+?admissions
+```{r warning=FALSE, include=FALSE}
+View(admissions)
+```
+
+```{r}
+df <- dslabs::admissions
+sapply(df, class)
+```
+### Task 2 ---------------------------------------------------------------------
+
+Use apply functions and "dplyr" package functionality to get average values for a number of applicants and percent of students admitted.Provide 3-4 different versions of the code.
+
+
+```{r}
+# Average number of applicants and percentage of students admitted
+admissions %>% 
+  summarise(avg_applicants = mean(applicants),
+            percent_admitted = mean(admitted))
+```
+
+Version 1: Using summarise()
+
+```{r}
+admissions %>% 
+  summarise(avg_applicants = mean(applicants),
+            percent_admitted = mean(admitted))
+```
+
+Version 2: Using summarise() and ifelse()
+
+```{r}
+admissions %>% 
+  summarise(avg_applicants = mean(applicants),
+            percent_admitted = mean(ifelse(applicants == 0, 0, admitted)))
+```
+
+Version 3: Using summarise() and case_when()
+
+```{r}
+admissions %>% 
+  summarise(avg_applicants = mean(applicants),
+            percent_admitted = mean(case_when(applicants == 0 ~ 0,
+                                              TRUE ~ admitted)))
+```
+
+Version 4: Using summarise() and map_dbl()
+
+```{r}
+library(purrr)
+admissions %>% 
+  summarise(avg_applicants = mean(applicants),
+            percent_admitted = mean(map_dbl(admitted, ~ ifelse(is.na(.x) | .x == Inf, 0, .x))))
+```
+
+
+
+### Task 3 ---------------------------------------------------------------------
+
+Use "base" and "dplyr" functionality to get average values for a number of applicants and percent of students admitted for "men" only. Provide 3-4 different versions of the code.
+
+Version 1: Using base R
+```{r}
+# Subset the data for men only
+men_admissions <- admissions[admissions$gender == "men",]
+
+# Calculate the average number of male applicants and the percentage of male students admitted
+mean_applicants <- mean(men_admissions$applicants)
+mean_admitted <- mean(men_admissions$admitted)
+
+# Print the results
+cat("Average number of male applicants:", mean_applicants, "\n")
+cat("Percentage of male students admitted:", mean_admitted, "\n")
+```
+
+Version 2: Using dplyr and summarise()
+    
+```{r}
+library(dplyr)
+
+admissions %>% 
+  filter(gender == "men") %>% 
+  summarise(avg_applicants = mean(applicants),
+            percent_admitted = mean(admitted))
+```
+
+Version 3: Using dplyr and ifelse()
+```{r}
+library(dplyr)
+
+admissions %>% 
+  filter(gender == "men") %>% 
+  summarise(avg_applicants = mean(applicants),
+            percent_admitted = mean(ifelse(applicants == 0, 0, admitted)))
+```
+
+versions 4: using summarise() and map_dbl():
+```{r}
+library(purrr)
+
+admissions %>% 
+  filter(gender == "men") %>% 
+  summarise(avg_applicants = mean(applicants),
+            percent_admitted = mean(map_dbl(admitted, ~ ifelse(is.na(.x) | .x == Inf, 0, .x))))
+```
+
+### Task 4 ---------------------------------------------------------------------
+
+Create two data frames based on the original one. First data set is to have columns "major", "gender" and "admitted". Second data set is to have columns "major", "gender" and "applicants". 
+
+```{r}
+# Create data frame with columns "major", "gender", and "admitted"
+admitted_df <- admissions %>% 
+  select(major, gender, admitted)
+
+# Create data frame with columns "major", "gender", and "applicants"
+applicants_df <- admissions %>% 
+  select(major, gender, applicants)
+```
+
+Use "base" and "dplyr" functionality to combine these two data sets together.Provide 3-4 different versions of the code for combining data.
+
+
+Version 1: Using base R
+```{r}
+# Merge the two data frames by "major" and "gender"
+combined_df <- merge(admitted_df, applicants_df, by = c("major", "gender"))
+
+# Print the combined data frame
+combined_df
+```
+
+Version 2: Using dplyr and inner_join()
+```{r}
+library(dplyr)
+
+# Join the two data frames by "major" and "gender"
+combined_df <- inner_join(admitted_df, applicants_df, by = c("major", "gender"))
+
+# Print the combined data frame
+combined_df
+```
+
+Version 3: Using dplyr and left_join()
+```{r}
+library(dplyr)
+
+# Join the two data frames by "major" and "gender"
+combined_df <- left_join(admitted_df, applicants_df, by = c("major", "gender"))
+
+# Print the combined data frame
+combined_df
+```
+
+Version 4: Using dplyr and full_join()
+```{r}
+library(dplyr)
+combined_df <- admitted_df %>% full_join(applicants_df, by= c("major", "gender"))
+combined_df
+```
+
+Check if you get the same result as the original data set.
+```{r}
+# Check if the combined data frame is the same as the original data frame
+identical(combined_df, admissions)
+```
+
+# Exercises for dplyr  ---------------------------------------------------------
+Group and Aggregate. More data manipulation
+
+
+Please try to complete tasks listed below. Type your code and results interpretations in each section.
+
+```{r warning=FALSE, include=FALSE}
+# clean up global environment
+rm(list = ls())
+
+library(tidyverse)
+```
+
+### Task 1 ---------------------------------------------------------------------
+
+Load data set "admissions" from the package "dslabs".
+
+```{r}
+library(dslabs)
+data(admissions)
+```
+
+Calculate an average percentage of admitted students separately for men and women. Is there an gender-based bias?
+```{r}
+admissions %>%
+  group_by(gender) %>%
+  summarize(avg_admitted = mean(admitted))
+```
+
+
+
+
+### Task 2 ---------------------------------------------------------------------
+
+We know the total number of applicants and percent of students admitted for 
+each department and gender. Calculate how many students were admitted in for 
+each departments separately for men and women, then calculate total number of
+men and women admitted and finally a percent of men and women admitted to 
+the university. Is there an gender-based bias?
+
+
+
+```{r}
+admitted_df <- admissions %>% mutate(headcount = round((applicants * admitted/100)))
+admitted_df
+```
+```{r}
+admitted_df %>% 
+  group_by(gender) %>%
+  summarize(total_admitted = sum(headcount), total_applicants = sum(applicants) ) %>%
+  mutate(percent_admitted = total_admitted/total_applicants)
+```
+
+### Task 3 ---------------------------------------------------------------------
+
+Load data set "movielens" from the package "dslabs". Check data description.
+
+
+?movielens
+```{r warning=FALSE, include=FALSE}
+library(dslabs)
+library(dplyr)
+data(movielens)
+
+```
+```{r warning=FALSE, include=FALSE}
+view(movielens)
+```
+
+
+There is a hypothesis that in the past there were more movies and they were
+of a better quality. Count how many movies per in the data set and what is 
+an average rating for all movies in each year.
+
+
+
+```{r}
+rating <- movielens %>%
+  group_by(year) %>%
+  summarize(n_movies = n(),
+            avg_rating = mean(rating, na.rm = TRUE))
+
+rating
+view(rating)
+```
+
+```{r}
+rating_df <- as.data.frame(rating)
+
+rating_df %>%
+  ggplot(aes(x = year, y = avg_rating)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Year", y = "Rating", title = "Number of movies per year")
+```
+
+Think very carefully about average rating per year. It is not an average of 
+all ratings per year but average of all movies per year.
+
+
+
+
+### Task 4 ---------------------------------------------------------------------
+
+Keep working with "movielens" data set. There are 671 users provided ratings.
+Some users rated a lot of movies, other users rated not so many movies.
+(1) Select top 10 users by the number of movies they rated.
+```{r}
+top_users <- movielens %>%
+  group_by(userId) %>%
+  summarize(n_movies = n()) %>%
+  top_n(10, n_movies)
+top_users
+```
+
+
+
+(2) For these top users - count how many times they rated movies from each genre.
+```{r}
+# Filter the data for the top users
+top_users_data <- movielens %>%
+  filter(userId %in% top_users$userId)
+
+# Count how many times the top users rated movies from each genre
+top_users_genre_counts <- top_users_data %>%
+  group_by(genres) %>%
+  summarize(counts = n()) %>%
+  arrange(desc(counts))
+
+top_users_genre_counts
+```
+
+
+# (3) For the reporting, create a table with rows being genres, columns being usedId for top 10 users and values being counts of ratings per each genre.
+```{r}
+
+
+# Count how many times the top users rated movies from each genre
+top_users_genre_counts <- top_users_data %>%
+  group_by(userId, genres) %>%
+  summarize(n_ratings = n())
+
+# Create a table with rows being genres, columns being userId for top 10 users, and values being counts of ratings per each genre
+table <- top_users_genre_counts %>%
+  pivot_wider(names_from = userId, values_from = n_ratings, values_fill = 0)
+
+table
+```
+
+Hint: to select only some users from the list of many users you can use
+matching value function - check help file: help("%in%", package = "base").
+Alternatively joining function would do the same trick for you.

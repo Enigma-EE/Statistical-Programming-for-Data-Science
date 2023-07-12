@@ -1,0 +1,530 @@
+---
+title: |
+  | COMP5070_SP2_2023
+  | Exam
+  | Data Science Job Market in Australia
+author: "Enna H"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r echo = FALSE, include=FALSE}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 8, 
+  fig.asp = 0.618, 
+  out.width = "80%",
+  fig.align = "center", 
+  root.dir = "../",
+  message = FALSE,
+  size = "small"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+pacman::p_load(ggplot2,ggpubr,ggthemes,gridExtra,scales)
+pacman::p_load(viridis,hrbrthemes)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+
+```{r warning=FALSE, echo = FALSE, include=FALSE}
+# load the rds file as dataframe
+seek_ds <- readRDS("ds_24062023.rds")
+# check how many rows and columns in the dataset
+dim(seek_ds)
+# check duplicates
+sum(duplicated(seek_ds))
+# check data
+tail(seek_ds)
+```
+
+```{r warning=FALSE, echo = FALSE, include=FALSE}
+# check how many unique values are in each column
+sapply(seek_ds, function(x) length(unique(x)))
+# drop the salary_range column
+seek_ds <- seek_ds %>% select(-salary_range)
+```
+
+```{r warning=FALSE, echo = FALSE, include=FALSE}
+# what are the unique values in column 'state' and 'date_posted'
+unique(seek_ds$state)
+unique(seek_ds$date_posted)
+unique(seek_ds$salary)
+```
+
+```{r warning=FALSE, echo = FALSE, include=FALSE}
+# Rename the 'state' column to 'area'
+names(seek_ds)[names(seek_ds) == 'state'] <- 'area'
+
+# Function to extract state abbreviations
+extract_state <- function(location) {
+  # List of state abbreviations
+  states <- c("NSW", "QLD", "SA", "ACT", "VIC", "WA", "TAS", "NT")
+  
+  # Split the location into words
+  words <- unlist(strsplit(location, " "))
+  
+  # Find the state abbreviation in the list of words, if it exists
+  state <- intersect(states, words)
+  
+  # If a state abbreviation was found, return it. Otherwise, return NA.
+  if (length(state) > 0) {
+    return(state)
+  } else {
+    return(NA)
+  }
+}
+
+# Apply the function to the 'area' column to create a new 'state' column
+seek_ds$state <- sapply(seek_ds$area, extract_state)
+
+# Check the unique values in the 'state' column
+unique(seek_ds$state)
+
+```
+
+
+```{r warning=FALSE, echo = FALSE, include=FALSE}
+
+# Extract salary using regular expression. Pattern matches any digit or comma after a $ sign
+seek_ds$salary_annual <- str_extract(seek_ds$salary, "\\$[\\d,]+")
+
+# Remove the $ sign and commas from the salary_annual column and convert it to numeric
+seek_ds$salary_annual <- as.numeric(gsub("[$,]", "", seek_ds$salary_annual))
+```
+
+
+```{r warning=FALSE, echo = FALSE}
+# Load necessary libraries
+library(lubridate)
+
+# Convert collection date into POSIXct
+collection_date <- ymd_hm("2023-06-24 19:35")
+
+# Extract numeric part and time unit (days or hours)
+seek_ds <- seek_ds %>%
+  mutate(time_num = as.numeric(str_extract(date_posted, "\\d+")),
+         time_unit = ifelse(str_detect(date_posted, "d"), "days", "hours"))
+
+# Convert date_posted to actual date
+seek_ds <- seek_ds %>%
+  mutate(date_posted = ifelse(time_unit == "days", 
+                              collection_date - days(time_num), 
+                              collection_date - hours(time_num)))
+
+# Remove temporary columns
+seek_ds <- seek_ds %>%
+  select(-time_num, -time_unit)
+```
+
+
+
+
+```{r warning=FALSE, echo = FALSE, include=FALSE}
+# Convert Unix time to date-time format
+seek_ds$date_posted <- as.POSIXct(seek_ds$date_posted, origin="1970-01-01", tz = "UTC")
+
+# View the converted dates
+# head(seek_ds)
+tail(seek_ds)
+# check how many rows and columns in the dataset
+dim(seek_ds)
+```
+
+```{r warning=FALSE, echo = FALSE, include=FALSE}
+# order the dataset by date_posted to see the earliest date
+seek_ds <- seek_ds %>% arrange(date_posted)
+# head(seek_ds)
+head(seek_ds)
+```
+
+
+## Introduction
+
+Amidst the swift expansion of the Data Science field and its proliferating demand across numerous sectors, gaining an insightful understanding of the job market's dynamics is pivotal for both employers and job seekers to remain competitive and make informed decisions.
+
+This report conducts an extensive exploration of the Data Science job market within Australia, utilizing data obtained from Seek.com.au, Australia's leading job search website. Data encompassing 540 search results was acquired through web scraping, with the majority of these postings created in the 30 days preceding June 24, 2023. It is important to note that some featured postings may be displayed on the Seek site for longer than 30 days. The analysis pays attention to crucial aspects such as salary distribution, job market diversity across states, prevalent job titles and industries, and a time-based analysis of job postings. The overarching objective of this analysis is to generate valuable insights that will aid job seekers in identifying promising opportunities and employers in formulating effective recruitment strategies.
+
+
+### Exploratory Data Analysis
+
+The exploratory data analysis section delves into the dataset obtained from Seek.com.au, focusing on key statistical findings related to annual salaries in the Data Science domain. By examining summary statistics such as median salary, standard deviation, maximum salary, this section offers a comprehensive overview of the salary landscape. Additionally, visualizations in the form of histograms provide a clear understanding of the salary distribution, aiding job seekers and employers in grasping the prevailing salary levels within the market.
+
+```{r warning=FALSE, echo = FALSE}
+# Check the number of missing values in each column
+# Filter out salaries under 50000
+seek_ds_filtered <- seek_ds %>% filter(salary_annual >= 50000)
+summary_df <- seek_ds_filtered %>%
+  summarise(salary_median = median(salary_annual, na.rm = TRUE),
+            salary_sd = sd(salary_annual, na.rm = TRUE),
+            salary_max = max(salary_annual, na.rm = TRUE)) %>%
+  mutate_at(vars(starts_with("salary_")), ~sprintf("%.2f", .))
+
+kable(summary_df, caption = "Summary Statistics for Annual Salary in Seek Data Scientist Dataset")
+
+```
+
+Not all job postings include the annual wage. Table 1 shows the summary statistics for the annual pay in the Seek Data Scientist ad that includes the compensation in the description. With a standard deviation of $28738.37, the median pay is $11,2682. The highest recorded compensation is $180,000. 
+
+
+
+\newpage
+
+```{r warning=FALSE, echo = FALSE}
+# Create a table with the number of unique values for each feature
+unique_counts <- sapply(seek_ds[c("job_title", "area", "industry", "state")], function(x) length(unique(x)))
+
+# Convert to a data frame
+unique_df <- data.frame(
+  Unique_Counts = unique_counts
+)
+
+# Create table with knitr's kable()
+kable(unique_df, caption = "Number of unique values for each feature")
+
+```
+
+Table 2 presents the number of unique values for each feature in the dataset. There are 354 unique job titles, 23 unique areas, 18 unique industries, and 8 unique states represented in the dataset.
+
+```{r warning=FALSE, echo = FALSE}
+# Set the base theme for all plots
+theme_set(theme_ipsum())
+
+# Filter out salaries under 50000
+seek_ds_filtered <- seek_ds %>% filter(salary_annual >= 50000)
+
+# Create a histogram of the salary_annual column
+ggplot(seek_ds_filtered, aes(x = salary_annual)) +
+  geom_histogram(binwidth = 5000, fill = "#4e4e87") +
+  geom_vline(aes(xintercept = median(salary_annual, na.rm = TRUE)), color = "#483bcf", linetype = "dashed", size = 1) +
+  geom_text(aes(x = median(salary_annual, na.rm = TRUE), y = 16, label = "Median"), color = "#28262b") +
+  labs(x = "Annual Salary", y = "Count", title = "Salary Distribution") +
+  theme_minimal()
+```
+
+**Figure 1.** Salary Distribution in Seek Data Scientist Dataset.
+
+Figure 1 illustrates the distribution of salaries in the Seek Data Scientist dataset. The histogram provides an overview of the salary ranges for data science positions. Further analysis of the distribution can help job seekers and employers understand the prevailing salary levels in the market.
+
+The EDA of the Seek.com.au dataset has provided us with several key insights about the landscape of salaries in the Data Science domain. The median annual salary for job postings that include a salary is approximately $112,682, demonstrating that data science is a well-compensated field overall. The highest salary recorded is $180,000, indicating that there are potentially very lucrative opportunities available for highly skilled or experienced professionals.
+
+The large standard deviation of approximately $28,738 in salaries underscores the variation in the dataset. This could be due to factors such as job level (junior vs. senior roles), specific technical skills required, or even geographical location. Therefore, it's important for job seekers and employers to bear in mind that salaries can differ significantly based on these parameters.
+
+The dataset comprises a large variety of job titles, areas, industries, and states. This diversity reflects the dynamic and evolving nature of the data science field. The fact that there are 354 unique job titles suggests that there may be a broad array of roles that fall under the data science umbrella, each potentially carrying different salary expectations.
+
+The histogram visualization offers a clear representation of salary distribution, showing that while there are outliers, a significant proportion of salaries are clustered around the median. This can be a useful reference for both job seekers and employers to understand the standard market rate for data science professionals.
+
+While the EDA has offered a general understanding of the salary scenario, it's important to consider that the data is specific to Seek.com.au, which may not encompass all job postings in the field of Data Science. Additionally, the EDA doesn't account for certain details such as years of experience, educational qualifications, or specific skills, which could potentially have a significant impact on the salary. Hence, this analysis provides a starting point, but a more detailed analysis considering these factors could provide further depth to our understanding.
+
+--- 
+
+## Job Market Distribution across States
+
+This section investigates the distribution of Data Science job positions across different states in Australia. Through the utilization of bar charts, it presents a visual representation of the number of available positions in each state. Furthermore, employing boxplots, this section examines the salary distribution per state, aiming to identify states that offer higher salaries for Data Scientist roles. By combining visual and tabular data, this analysis helps job seekers and employers comprehend the regional dynamics of the job market and make informed decisions accordingly.
+
+```{r warning=FALSE, echo = FALSE}
+# clean up the 'state' field to remove extra city names
+seek_ds$state <- gsub(".*\\s", "", seek_ds$state)
+
+# Group data by 'state' and calculate the number of positions for each state
+state_positions <- seek_ds %>%
+  group_by(state) %>%
+  summarise(n = n(), .groups = 'drop')
+
+# Print the number of positions per state
+# print(state_positions)
+# Create table with knitr's kable()
+# kable(state_positions, caption = "the number of positions per state")
+```
+
+```{r warning=FALSE, echo = FALSE}
+# Create a bar plot for the number of positions per state
+ggplot(state_positions, aes(x = reorder(state, n), y = n)) +
+  geom_bar(stat="identity", fill = '#4e4e87') +
+  coord_flip() +
+  labs(x = 'State', y = 'Number of positions', title = 'Number of positions per state') +
+  theme_minimal()
+```
+**Figure2:** Number of positions per state.
+
+Now that we have visualized the number of positions available in each state, let's compare the salary distributions across states. This will provide insights on whether certain states tend to offer higher salaries for Data Scientist roles.
+
+Let's use a boxplot to visualize the salary distribution per state:
+Boxplot for salary_annual by state or industry: This can give you a sense of the salary distribution per state or industry.
+
+```{r warning=FALSE, echo = FALSE}
+# Boxplot for salary_annual by state
+ggplot(seek_ds_filtered, aes(x = state, y = salary_annual)) +
+  geom_boxplot(fill = "#4e4e87", outlier.shape = NA) +
+  labs(x = "State", y = "Annual Salary", title = "Salary Distribution by State") +
+  theme_minimal()
+```
+**Figure 3:** Salary distribution by state.
+
+
+```{r warning=FALSE, echo = FALSE}
+# Group data by 'state' and calculate the median salary for each state
+state_salaries <- seek_ds_filtered %>%
+  group_by(state) %>%
+  summarise(median_salary = median(salary_annual, na.rm = TRUE), .groups = 'drop')
+
+# Print the median salary per state
+# kable(state_salaries, caption = "Median Salary per State")
+```
+
+
+```{r warning=FALSE, echo = FALSE}
+# Join the state_positions and state_salaries dataframes
+state_summary <- inner_join(state_positions, state_salaries, by = "state")
+
+# Print the summary dataframe
+kable(state_summary, caption = "the number of positions per state and median salary per state")
+```
+
+The analysis reveals that New South Wales (NSW) and Victoria (VIC) dominate the Data Science job market, with 184 and 175 positions respectively. Despite being considerably smaller, the Australian Capital Territory (ACT) also offers a substantial number of positions, housing 42 opportunities. Conversely, Tasmania (TAS) and the Northern Territory (NT) proffer the fewest opportunities, with 6 and 5 positions respectively.
+
+The analysis of salary distributions reveals that NSW offers the highest median salary at AUD 120,000, followed by VIC with AUD 112,682 and ACT with AUD 107,475. The lowest median salary is recorded in NT, amounting to AUD 95,548. Thus, NSW and VIC emerge as the most attractive destinations for data scientists, with a plethora of job opportunities and competitive median salaries. On the other hand, TAS and NT, while providing fewer opportunities, still offer relatively competitive salaries.
+
+From a business standpoint, the analysis provides valuable insights into the geographical distribution of data science opportunities and associated salaries in Australia. Evidently, New South Wales (NSW) and Victoria (VIC) are the hotspots for data science jobs, accounting for the majority of the positions. This could be indicative of a more mature technology and business landscape in these states, with numerous companies leveraging data science for their operations.
+
+On the flip side, while Tasmania (TAS) and the Northern Territory (NT) might offer fewer job opportunities, they do present potential growth areas for businesses looking to tap into less competitive markets. As data science continues to grow, we could see an increase in opportunities in these regions, making them ideal for businesses considering future expansions.
+
+In terms of salaries, NSW, VIC, and the Australian Capital Territory (ACT) lead with higher median salaries. Companies in these states seem to value the role of data scientists, offering competitive remuneration to attract top talent. However, businesses must consider this information in tandem with the cost of living and operation in these states, which could be higher than in regions with lower median salaries.
+
+Furthermore, the discrepancy in salaries across states can influence businesses' talent acquisition strategies. For instance, they could consider remote working policies to tap into talent pools beyond their state borders.
+
+This analysis also signals the importance of data-driven decision-making across various sectors. As data science opportunities grow, it's crucial for businesses not just to invest in hiring skilled professionals but also to ensure they are offering competitive salaries to retain them. Regular benchmarking against market trends, like the analysis presented, can help businesses stay competitive in their compensation strategies.
+
+However, it's worth noting that these trends are subject to change, as the technology industry is dynamic and rapidly evolving. Continuous monitoring of the job market and salaries across states will be crucial to adapt to changes and make informed business decisions.
+
+
+--- 
+
+## Job Titles and Industries
+
+The job titles and industries section explores the most common job titles and industries within the Data Science job market. Through the use of bar charts, it provides a visual depiction of the frequency of the top 10 job titles and industries. Furthermore, detailed tables present the specific job titles and industries along with their respective frequencies. The analysis also includes an examination of median salaries by industry, allowing job seekers and employers to identify sectors that offer higher compensation. This section assists in aligning career aspirations and recruitment strategies with the prevailing job titles and industries in the market.
+
+```{r warning=FALSE, echo = FALSE}
+# Find the 10 most common job titles
+common_titles <- seek_ds %>%
+  count(job_title, sort = TRUE) %>%
+  top_n(10)
+
+# Create a bar plot for the common job titles
+ggplot(common_titles, aes(x = reorder(job_title, n), y = n)) +
+  geom_bar(stat = "identity", fill = '#4e4e87') +
+  coord_flip() +
+  labs(x = 'Job Title', y = 'Frequency', title = '10 Most Common Job Titles')+
+  theme_minimal()
+```
+**Figure 4:** Bar plot displaying the 10 most common job titles in the Seek Data Scientist job postings for the past 30 days.
+
+
+```{r warning=FALSE, echo = FALSE}
+# Find the 10 most common industries
+common_industries <- seek_ds %>%
+  count(industry, sort = TRUE) %>%
+  top_n(10)
+
+# Create a bar plot for the common industries
+ggplot(common_industries, aes(x = reorder(industry, n), y = n)) +
+  geom_bar(stat = "identity", fill = '#4e4e87') +
+  coord_flip() +
+  labs(x = 'Industry', y = 'Frequency', title = '10 Most Common Industries') +
+  theme_minimal()
+```
+**Figure 5:** Bar plot displaying the 10 most common industries in the Seek Data Scientist job postings for the past 30 days.
+
+
+
+```{r warning=FALSE, echo = FALSE}
+# Group data by 'industry' and calculate the median salary for each industry
+industry_salaries <- seek_ds_filtered %>%
+  group_by(industry) %>%
+  summarise(median_salary = median(salary_annual, na.rm = TRUE), .groups = 'drop')
+
+# Filter for the 10 most common industries
+industry_salaries <- industry_salaries %>%
+  filter(industry %in% common_industries$industry)
+
+# Adjust salary to thousands
+industry_salaries$median_salary <- industry_salaries$median_salary / 1000
+
+# Create a bar plot for median salaries by industry
+ggplot(industry_salaries, aes(x = reorder(industry, -median_salary), y = median_salary)) +
+  geom_bar(stat = "identity", fill = '#4e4e87') +
+  coord_flip() +
+  scale_y_continuous(labels = scales::comma) +
+  labs(x = 'Industry', y = 'Median Salary (in thousands)', title = 'Median Salaries by Industry') +
+  theme_minimal()
+```
+**Figure 6:** Bar plot displaying the median salaries by industry in the Seek Data Scientist job postings for the past 30 days.
+
+
+```{r warning=FALSE, echo = FALSE}
+
+# Table for 10 Most Common Job Titles
+kable(common_titles, caption = '10 Most Common Job Titles')
+```
+
+
+```{r warning=FALSE, echo = FALSE}
+# Table for 10 Most Common Industries
+kable(common_industries, caption = '10 Most Common Industries')
+```
+
+
+
+```{r warning=FALSE, echo = FALSE}
+# Adjust median_salary to two decimal places
+industry_salaries$median_salary <- sprintf("%.2f", industry_salaries$median_salary)
+
+
+# Display the table again with the adjusted salary
+kable(industry_salaries, caption = 'Median Salaries by Industry  (in thousands)')
+```
+
+When it comes to job titles, "Data Engineer" is the most frequent, followed by "Senior Data Engineer" and "Data Analyst". The "Information & Communication Technology" industry emerged as the most prevalent industry for data science roles, significantly outnumbering other sectors like "Science & Technology" and "Government & Defence".
+
+Regarding salary distribution across industries, the "Banking & Financial Services" sector pays the highest median salary (AUD 140,000), followed by "Healthcare & Medical" and "Marketing & Communications" industries. It's worth noting that these salary metrics are based on job postings and may not necessarily represent the final compensation provided, which could also include benefits and bonuses.
+
+From a business perspective, the analysis of common job titles and industries gives a valuable insight into the job market structure and remuneration practices within different industries.
+
+Understanding the most common job titles such as "Data Engineer," "Senior Data Engineer," and "Data Analyst" can guide businesses in aligning their job descriptions and roles to industry standards. It's apparent that the data engineering field is prominent, indicating a high demand for professionals who can organize and manage large data sets. Businesses, particularly those in the process of building or expanding their data teams, might consider creating more roles in these areas, given their apparent market prominence.
+
+The fact that the "Information & Communication Technology" sector is leading in data science roles is expected, given the sector's reliance on data for decision-making, strategy formulation, and operations. However, the presence of sectors like "Science & Technology," "Government & Defence," and even "Healthcare & Medical" in the top industries shows the increasing adoption of data science across diverse fields. Businesses in these sectors should ensure they stay competitive by incorporating data science into their strategies and operations.
+
+The salary analysis by industry is of particular interest to businesses for multiple reasons. It highlights the "Banking & Financial Services" sector's willingness to invest heavily in data science, indicating their high reliance on data-driven decision-making. It also shows that the "Healthcare & Medical" and "Marketing & Communications" sectors, despite being less represented in job postings, value data science roles highly and are willing to offer competitive salaries.
+
+However, it's important to consider other forms of remuneration, such as benefits and bonuses, which are often not represented in job posting salaries. Companies should take this into account when formulating their compensation packages. Offering competitive salaries could be crucial to attract and retain top talent in these roles.
+
+Moreover, businesses in industries that are currently less represented in data science roles, like "Government & Defence," might consider the potential benefits of expanding their data science capabilities. Given the increasing reliance on data across all sectors, early adoption could offer a significant competitive advantage.
+
+In conclusion, businesses need to consider the insights from these data when formulating strategies related to talent acquisition, compensation packages, and industry trends. Regularly updating this analysis can ensure businesses stay abreast of market trends and can make informed, data-driven decisions.
+
+--- 
+
+## Time-Based Analysis of Job Postings
+
+This section focuses on the temporal patterns of job postings in the Data Science field. A line chart illustrates the number of job postings over time, offering insights into the fluctuations in job demand. Additionally, a bar chart and a table provide an analysis of job postings based on the day of the week, enabling job seekers and employers to identify patterns and optimize their job search and recruitment efforts accordingly. This time-based analysis aids in understanding the dynamics of job availability and assists in planning effective job search and recruitment strategies.
+
+```{r warning=FALSE, echo = FALSE, include=FALSE}
+str(seek_ds)
+
+# Create a new column 'weekday' representing the day of the week
+seek_ds$weekday <- weekdays(seek_ds$date_posted)
+```
+
+
+```{r warning=FALSE, echo = FALSE}
+library(viridis)
+library(hrbrthemes)
+
+
+# Count job postings per day per state
+jobs_by_date_state <- seek_ds %>%
+  count(date_posted, state)
+
+# Create a new column 'week_start' that indicates the start of the week
+jobs_by_date_state$week_start <- floor_date(jobs_by_date_state$date_posted, "week")
+
+# Create a line plot for job postings over time, stacked by state
+ggplot(jobs_by_date_state, aes(x = date_posted, y = n, fill = state)) +
+  geom_area(alpha=0.8 , size=.5, colour="white") +
+  scale_fill_viridis(discrete = TRUE) +
+  theme_ipsum() + 
+  labs(x = 'Date', y = 'Number of Job Postings', fill = 'State', title = 'Job Postings Over Time by State') +
+  geom_vline(data=jobs_by_date_state, aes(xintercept = as.numeric(week_start)), linetype="dashed", color = "#3a2c5f", size=0.5) +
+  theme_minimal()
+
+```
+
+**Figure 7:** Job Postings Over Time, Stacked by State, with Week Start Indicated by Dashed Lines.
+
+
+
+A time series analysis of the job postings reveals significant fluctuations, indicating that the demand for data scientists varies over time. However, a more granular analysis that factors in events such as economic fluctuations or policy changes may be required to provide precise explanations for these variations.
+
+
+```{r warning=FALSE, echo = FALSE}
+
+# Count job postings per weekday
+jobs_by_weekday <- seek_ds %>%
+  count(weekday) %>%
+  mutate(weekday = factor(weekday, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")))
+
+```
+
+
+```{r warning=FALSE, echo = FALSE}
+# Count job postings per weekday per state
+jobs_by_weekday_state <- seek_ds %>%
+  count(weekday, state) %>%
+  mutate(weekday = factor(weekday, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")))
+
+# Create a bar plot for job postings per weekday, stacked by state
+ggplot(jobs_by_weekday_state, aes(x = weekday, y = n, fill = state)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis(discrete = TRUE) +
+  labs(x = 'Weekday', y = 'Number of Job Postings', fill = 'State', title = 'Job Postings by Day of the Week') +
+  theme_ipsum() +
+  theme_minimal()
+```
+**Figure 8:** Job Postings by Day of the Week.
+
+\newpage
+
+
+
+```{r warning=FALSE, echo = FALSE}
+# Table for Job Postings by Day of the Week
+kable(jobs_by_weekday, caption = 'Job Postings by Day of the Week')
+```
+
+Moreover, an analysis of the distribution of job postings across weekdays shows a surge in postings at the start and end of the working week, with the highest number recorded on Fridays. The number of postings drops significantly over the weekend, demonstrating the typical job posting behaviour in line with the conventional work week.
+
+The temporal analysis of job postings provides valuable insights into recruitment patterns and the dynamics of job demand in the data science field. Trend analysis of job postings over time can help businesses understand the fluctuating demand for data science roles, which may be due to multivariate factors such as economic factors or policy changes. This information can guide hiring efforts, such as attracting top talent during periods of increased postings or simplifying the recruitment process during lulls.
+
+The analysis of job postings by the day of the week can help businesses optimize their recruitment strategies. A higher number of postings on Fridays suggests that businesses prefer to advertise new positions towards the end of the work week. Understanding this pattern can help businesses stand out by posting job advertisements on less busy days, reducing competition and increasing visibility. Additionally, job postings drop significantly over the weekend, attracting potential applicants who might be more active in their job search during non-working days.
+
+Strategic planning can benefit from aligning job posting schedules with observed patterns and responding promptly to changing market dynamics. This time-based analysis helps businesses optimize their recruitment efforts, improve visibility of job postings, and align hiring strategies with observed market trends. Overall, this time-based analysis emphasizes the importance of leveraging data to make informed, strategic business decisions.
+
+
+
+---
+
+## Conclusions and Recommendations
+
+Australia's Data Science job market is a dynamic and diverse field, providing distinct opportunities and challenges for both job seekers and employers. The analysis has revealed substantial differences across states, job roles, and industries, emphasizing that an in-depth understanding of these variations can significantly contribute to aligning job seekers' career aspirations with suitable opportunities, and assisting employers in maintaining a competitive edge.
+
+Even though states such as NSW and VIC might seem more appealing due to the abundance of opportunities, job seekers should not overlook states like TAS and NT. These regions may offer fewer positions, but the competition is also less intense, making it crucial for candidates to consider a wider geographical range in their job search.
+
+The analysis of temporal patterns in job postings offers valuable insights. Job seekers can harness this information to optimize their job search strategies, while employers can strategically time their job postings to ensure maximum visibility.
+
+Moreover, given the fast-paced evolution of the Data Science field, staying abreast of current trends and changes in the job market is essential. Future studies could further investigate the correlation between job titles, required skills, and salary offerings, providing more detailed insights for stakeholders. Such information could enable job seekers to target high-demand skills and assist employers in designing competitive compensation packages.
+
+In conclusion, this analysis has unearthed key insights about the Australian Data Science job market, highlighting regional and temporal variations, prevalent job titles, and industries. These findings serve as a valuable guide for job seekers and employers in their decision-making process. However, with the ever-evolving landscape, continuous monitoring of market trends and adapting strategies accordingly is crucial. Further research could delve into the intricate relationship between job titles, associated skills, and salaries, thereby providing a more comprehensive understanding of the job market dynamics.

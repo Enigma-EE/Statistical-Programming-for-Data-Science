@@ -1,0 +1,550 @@
+---
+title: |
+  | COMP5070_SP2_2023
+  | week12
+author: "Enna H"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+Ctrl + c
+
+
+```{r echo = FALSE, include=FALSE}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 8, 
+  fig.asp = 0.618, 
+  out.width = "80%",
+  fig.align = "center", 
+  root.dir = "../",
+  message = FALSE,
+  size = "small"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+pacman::p_load(ggplot2,ggpubr,ggthemes,gridExtra,scales)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(shiny, shinydashboard, shinyWidgets, shinyjs, shinyBS, shinyalert, shinyFiles, shinyFeedback, shinyjqui, shinyMobile, shinythemes, shinytoastr, shinyWidgets,DT)
+pacman::p_load(dashboardthemes)
+```
+
+```{r}
+ui <- fluidPage( # define a fluid design page
+    # define input object/function of type slider; don't miss a comma at the end
+    sliderInput(inputId = "num", label = "Choose a number", value = 25, min = 1, max = 1000),
+    # define output object/function of type plot
+    plotOutput(outputId = "my_histogram")
+)
+server <- function(input, output) {
+    # render plot and place it in output object using right ID
+    output$my_histogram <- renderPlot({
+    # R code to prepare an output - graph; no commas at the end of line
+    my_data <- rnorm(input$num) # generate data
+    hist(my_data, main = "Random Normal distribution") # plot the data
+    abline(v = mean(my_data), col = "red", lty = 3, lwd = 3) # add extra line
+    })
+}
+# function to combine user interface and server and then run the dashboard
+# I store result as a variable to create PDF document, you just run the function
+# and enjoy an interactive dashboard
+appToPlot <- shinyApp(ui = ui, server = server)
+```
+
+```{r}
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+# prepare custom function to keep server function tidy
+plot_histogram <- function(my_data){
+    require(ggplot2)
+    my_data <- data.frame(x = my_data)
+    ggplot(my_data, aes(x)) + geom_histogram() +
+    geom_vline(xintercept = mean(my_data$x), colour = "red", linetype = "dotted", size = 2) +
+    ggtitle("Random Normal distribution")
+}
+# the same user interface function as before
+ui <- fluidPage(
+    sliderInput(inputId = "num", label = "Choose a number", value = 25, min = 1, max = 1000),
+    plotOutput(outputId = "my_histogram")
+)
+server <- function(input, output) {
+    # render plot and place it in output object using right ID
+    output$my_histogram <- renderPlot({
+    # R code to prepare an output - graph; no commas at the end of line
+    my_data <- rnorm(input$num) # generate data
+    plot_histogram(my_data) # plot the data by custom function prepared
+    })
+}
+# function to combine user interface and server and then run the dashboard
+appToPlot <- shinyApp(ui = ui, server = server)
+```
+
+```{r}
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+
+# Define UI
+ui <- fluidPage(
+  # Sidebar panel
+  sidebarPanel(
+    sliderInput(inputId = "num", label = "Choose a number", value = 25, min = 1, max = 1000)
+  ),
+  
+  # Main panel
+  mainPanel(
+    # First plot
+    plotOutput(outputId = "histogram"),
+    
+    # Second plot
+    plotOutput(outputId = "scatterplot"),
+    
+    # Table
+    dataTableOutput(outputId = "table")
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+  # First plot
+  output$histogram <- renderPlot({
+    my_data <- rnorm(input$num)
+    hist(my_data, main = "Random Normal Distribution")
+    abline(v = mean(my_data), col = "red", lty = 3, lwd = 3)
+  })
+  
+  # Second plot
+  output$scatterplot <- renderPlot({
+    x <- rnorm(input$num)
+    y <- rnorm(input$num)
+    ggplot(data.frame(x, y), aes(x, y)) +
+      geom_point() +
+      ggtitle("Scatter Plot")
+  })
+  
+  # Table
+  output$table <- renderDataTable({
+    iris
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+ui <- fluidPage(
+  sliderInput(inputId = "num", label = "Choose a number", value = 25, min = 1, max = 1000),
+  plotOutput(outputId = "my_histogram")
+)
+
+server <- function(input, output) {
+  output$my_histogram <- renderPlot({
+    my_data <- rnorm(input$num)
+    hist(my_data)
+  })
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+render*()
+First type or group of reactive functions is render*() functions. This group is simple, all its functions create
+some output on the web page depending on the reactive value and if that value changes they rebuild the
+output.
+# make a histogram
+renderPlot({ hist(rnorm(input$num)) })
+# print summary statistics in verbatim
+renderPrint({ summary(rnorm(input$num)) })
+# print text
+renderText({ paste("Mean of the data is ", mean(rnorm(input$num)), sep = "") })
+reactive()
+Second function is reactive(). It creates reactive expression. Consider an example below
+
+```{r}
+ui <- fluidPage( # define a fluid design page
+    sliderInput(inputId = "num", label = "Choose a number", value = 25, min = 1, max = 1000),
+    plotOutput(outputId = "my_histogram"), # placement for histogram, beware of comma
+    verbatimTextOutput("my_verbatim") # placement for verbatim text
+)
+server <- function(input, output) {
+# generate data and make it a reactive expression
+my_data <- reactive({ rnorm(input$num) })
+    output$my_histogram <- renderPlot({ hist(my_data(), main = "Histogram") }) # plot
+    output$my_verbatim <- renderPrint({ summary(my_data()) }) # print summary
+}
+# you don't need to store the result
+appToPlot <- shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server)
+```
+
+isolate()
+Third function is isolate(). It is used to isolate reactive expression from other reactive expressions. Consider an example below
+
+```{r}
+ui <- fluidPage( # define a fluid design page
+    sliderInput(inputId = "num", label = "Choose a number", value = 25, min = 1, max = 1000),
+    plotOutput(outputId = "my_histogram"), # placement for histogram, beware of comma
+    actionButton(inputId = "update", "Update View", icon("refresh")), # button to refresh
+    verbatimTextOutput("my_verbatim") # placement for verbatim text
+)
+server <- function(input, output) {
+# generate data and make it a reactive expression
+my_data <- reactive({ rnorm(input$num) })
+    output$my_histogram <- renderPlot({ hist(my_data()) }) # plot the data
+    output$my_verbatim <- renderPrint({
+    input$update # reactive value
+    isolate({ summary(my_data()) }) # isolated reactive value
+    })
+}
+shinyApp(ui = ui, server = server)
+```
+
+observeEvent()
+Fourth function is observeEvent(). It is used to observe some event and then do something. Consider an example below
+
+```{r}
+# create shiny app with one button only
+ui <- fluidPage(actionButton(inputId = "clicks", label = "Click me"))
+server <- function(input, output) {
+    observeEvent(input$clicks, {
+    print(as.numeric(input$clicks)) # print on the server but not in app
+    })
+}
+shinyApp(ui = ui, server = server)
+```
+
+observe()
+
+Fifth function is observe(). It is used to observe some event and then do something. Consider an example below
+
+```{r}
+ui <- fluidPage( actionButton(inputId = "clicks", label = "Click me"))
+server <- function(input, output) {
+    observe({ # observe for the change
+    input$clicks # in this reactive variable
+    print("I love U") # and then run this code on the server
+    })
+}
+shinyApp(ui = ui, server = server)
+```
+
+eventReactive()
+Function eventReactive() allows to delay the response of the dashboard to the change of the reactive variable.
+
+```{r}
+ui <- fluidPage( # define a fluid design page
+    sliderInput(inputId = "num", label = "Choose a number", value = 25, min = 1, max = 1000),
+    plotOutput(outputId = "my_histogram"), # placement for histogram, beware of comma
+    actionButton(inputId = "update", "Update View", icon("refresh")), # button to refresh
+    verbatimTextOutput("my_verbatim") # placement for verbatim text
+)
+server <- function(input, output) {
+# generate data and make it a reactive expression
+# but only if there is an event "the button is clicked"
+my_data <- eventReactive(input$update, { rnorm(input$num) }, ignoreNULL = FALSE)
+    output$my_histogram <- renderPlot({ hist(my_data()) }) # plot the data
+    output$my_verbatim <- renderPrint({ summary(my_data()) }) # print summary
+    }
+shinyApp(ui = ui, server = server)
+```
+
+Input value input$num behaves as it is isolated, as a result, the reactive expression my_data() is not created when we change input$num. The app will wait till we click the button and change reactive value input$update. Then reactive expression my_data() is created using the latest value of input$num stored in the memory.
+As you have seen above, the value input$update of the action button is an increasing counts of clicks. But the very first value of input$update before we make a click is NULL. Parameter ignoreNULL = FALSE in the function eventReactive() tells to run the code even for NULL value. That ensures to have a histogram and statistical summary on the start of the shiny app. If parameter ignoreNULL = TRUE, which is a default value for the function argument, then there will be no histogram or summary on the start of the app.
+
+reactiveValue()
+Shiny does not allow us to change input values in the code. Reminder: input values are reactive values that can activate reactive functions and force them to update. However, we can create our own reactive values to use inside reactive functions and create nice outputs. Function reactiveValue() allows to define a reactive value of format rv$valueID. Name rv works the same way as input and it can be absolutely anything. We can change our own custom reactive value and all reactive functions that use this value will be forced to update.
+
+
+```{r}
+ui <- fluidPage(
+# create drop down menu
+    selectInput(inputId = "distr", label = "Distribution:",
+    choices = c("Normal" = "norm", "Uniform" = "unif")),
+    plotOutput("hist") # histogram placement
+)
+server <- function(input, output) {
+    # create reactive value with ID "data" and a default value
+    rv <- reactiveValues(data = 0)
+    # change the actual value inside custom reactive value variable
+    observeEvent(input$distr, {
+    if(input$distr == "norm"){
+        rv$data <- rnorm(1000)
+    } else if(input$distr == "unif"){
+        rv$data <- runif(1000)
+    }
+})
+# plot the histogram if reactive value changes
+output$hist <- renderPlot({
+    hist(rv$data)
+    })
+}
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+# create user interface
+ui <- fluidPage("Test Page")
+# have a look on the HTML code
+print(ui)
+```
+
+```{r}
+# call for the function out of the tags list and provide text to include
+# in that tag as function argument
+print(tags$b("Test Page"))
+# call for the function out of the tags list
+print(tags$h1("Heading level 1"))
+print(tags$h2("Heading level 2"))
+```
+
+```{r}
+# get list of HTML functions
+names(tags)
+```
+
+h1() to h6() for six levels of headings
+• p() for a paragraph
+• br() for a line break
+• strong() for a bold text
+• em() for italicised text
+• a() for a hyperlink
+• hr() for a horizontal line
+• code() for a verbatim text
+• img() to include an image
+# file test.png should be in folder www
+print(img(height = 100, width = 100, src = "test.png"))
+
+```{r}
+# manually created HTML code
+my_code <- "<h1>Test Page</h1>
+<p>This is a test page for manual html code.</p>"
+# shiny app user interface
+ui <- fluidPage(
+HTML(my_code)
+)
+# check the result
+print(ui)
+```
+
+- Grid design with fluidRow() / fixedRow() and column()
+
+While the page layout is (typically) flexible, it might have a grid structure. Horizontal sections of that grid are created by function fluidRow() (or fixedRow() for fixed size page). Vertical sections are created by function column() with width and offset arguments.
+
+
+```{r}
+ui <- fluidPage( # define a fluid design page
+    # top level heading, beware the commas
+    h1("Grid structure"),
+    # first horizontal section
+    fluidRow(
+    # column of width 3, remember the commas between columns
+        column(3, wellPanel(p("Width 3"))),
+        # next column of width 6
+        column(6, wellPanel(p("Width 6")))),
+    # second horizontal section without any columns
+    fluidRow(
+        wellPanel(p("No columns"))
+    ),
+    # third horizontal section with one column offset to the right width 4
+    fluidRow(
+        column(4, wellPanel(p("Width 4 offset 6")), offset = 6)
+    )
+)
+server <- function(input, output) {
+    # nothing here as this example for layout only
+}
+shinyApp(ui = ui, server = server)
+```
+
+- Panels and tabs
+
+```{r}
+ui <- fluidPage(
+    wellPanel( # put input object into wellPanel() function
+    sliderInput(inputId = "num", label = "Choose a number", value = 25, min = 1, max = 1000)),
+    plotOutput(outputId = "my_histogram"), # placement for histogram, beware of comma
+    verbatimTextOutput("my_verbatim") # placement for verbatim text
+)
+server <- function(input, output) {
+    my_data <- reactive({ rnorm(input$num) })
+    output$my_histogram <- renderPlot({ hist(my_data(), main = "Histogram") }) # plot
+    output$my_verbatim <- renderPrint({ summary(my_data()) }) # print summary
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+ui <- fluidPage(
+    # dashboard title
+    titlePanel("Histogram of Normal Distribution"),
+    # page layout design
+    sidebarLayout(
+    # sidebar with a slider input
+    sidebarPanel(sliderInput(inputId = "num", label = "Choose a number",
+    value = 25, min = 1, max = 1000) ),
+    # main window with outputs
+    mainPanel(
+    plotOutput(outputId = "my_histogram"),
+    verbatimTextOutput(outputId = "my_verbatim")
+) ) )
+# no changes to server function
+server <- function(input, output) {
+    my_data <- reactive({ rnorm(input$num) })
+    output$my_histogram <- renderPlot({ hist(my_data(), main = "Histogram") }) # plot
+    output$my_verbatim <- renderPrint({ summary(my_data()) }) # print summary
+}
+# you don't need to store the result
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+ui <- fluidPage(
+    # layout of tabs
+    tabsetPanel(
+    # three separate tabs / pages
+    tabPanel("Normal", plotOutput(outputId = "norm")),
+    tabPanel("Uniform", plotOutput(outputId = "unif")),
+    tabPanel("Exponential", plotOutput(outputId = "exp"))
+    )
+)
+server <- function(input, output) {
+    output$norm <- renderPlot({ hist(rnorm(200)) })
+    output$unif <- renderPlot({ hist(runif(200)) })
+    output$exp <- renderPlot({ hist(rexp(200)) })
+}
+# you don't need to store the result
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+ui <- fluidPage(
+    # navigation bar for tab-panels
+    navlistPanel(
+    # three separate tabs / pages
+    tabPanel("Normal", plotOutput(outputId = "norm")),
+    tabPanel("Uniform", plotOutput(outputId = "unif")),
+    tabPanel("Exponential", plotOutput(outputId = "exp")),
+    widths = c(2,10) ) # widths for menu and for output section
+)
+server <- function(input, output) {
+    output$norm <- renderPlot({ hist(rnorm(200)) })
+    output$unif <- renderPlot({ hist(runif(200)) })
+    output$exp <- renderPlot({ hist(rexp(200)) })
+}
+# you don't need to store the result
+shinyApp(ui = ui, server = server)
+```
+
+- shinydashboard
+  
+```{r}
+# new type of the page
+ui <- dashboardPage(
+    # header
+    dashboardHeader(title = "Distributions"),
+    # side menu
+    dashboardSidebar( sidebarMenu(
+        menuItem("Normal", tabName = "norm"),
+        menuItem("Uniform", tabName = "unif"),
+        menuItem("Exponential", tabName = "exp"))),
+    # dashboard body with three stacked panels
+    dashboardBody( tabItems(
+        # three separate tabs / pages
+        tabItem("norm", fluidRow(
+            h1("Normal"),
+            plotOutput(outputId = "norm"))),
+        tabItem("unif", fluidRow(
+            h1("Uniform"),
+            plotOutput(outputId = "unif"))),
+        tabItem("exp", fluidRow(
+            h1("Exponential"),
+            plotOutput(outputId = "exp")))
+    ))
+)
+# no changes to server function
+server <- function(input, output) {
+    output$norm <- renderPlot({ hist(rnorm(200)) })
+    output$unif <- renderPlot({ hist(runif(200)) })
+    output$exp <- renderPlot({ hist(rexp(200)) })
+}
+# you don't need to store the result
+shinyApp(ui = ui, server = server)
+```
+
+- dashboardthemes
+
+```{r}
+ui <- dashboardPage(
+    dashboardHeader(title = "Distributions"),
+    dashboardSidebar( sidebarMenu(
+        menuItem("Normal", tabName = "norm"),
+        menuItem("Uniform", tabName = "unif"),
+        menuItem("Exponential", tabName = "exp"))),
+    dashboardBody(
+        shinyDashboardThemes(theme = "flat_red"), # new line of code
+        tabItems(
+        tabItem("norm", fluidRow(h1("Normal"), plotOutput(outputId = "norm"))),
+        tabItem("unif", fluidRow(h1("Uniform"), plotOutput(outputId = "unif"))),
+        tabItem("exp", fluidRow(h1("Exponential"), plotOutput(outputId = "exp")))
+    ))
+)
+# no changes to server function
+server <- function(input, output) {
+    output$norm <- renderPlot({ hist(rnorm(200)) })
+    output$unif <- renderPlot({ hist(runif(200)) })
+    output$exp <- renderPlot({ hist(rexp(200)) })
+}
+# you don't need to store the result
+shinyApp(ui = ui, server = server)
+```
+
+- shinythemes
+
+```{r}
+ui <- navbarPage( title = "Distributions",
+    tabPanel("Normal", plotOutput(outputId = "norm")),
+    tabPanel("Uniform", plotOutput(outputId = "unif")),
+    tabPanel("Exponential", plotOutput(outputId = "exp")),
+    theme = shinytheme("cerulean") # extra argument
+)
+server <- function(input, output) {
+    output$norm <- renderPlot({ hist(rnorm(200)) })
+    output$unif <- renderPlot({ hist(runif(200)) })
+    output$exp <- renderPlot({ hist(rexp(200)) })
+}
+# you don't need to store the result
+shinyApp(ui = ui, server = server)
+```

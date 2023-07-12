@@ -1,0 +1,556 @@
+---
+title: |
+  | STATS 3001 / STATS 4104 / STATS 7054
+  | Statistical Modelling III
+  | Exam
+author: "E"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 6, 
+  fig.asp = 0.618, 
+  out.width = "70%",
+  fig.align = "center", 
+  root.dir = "../"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+```
+
+
+
+
+```{r}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+
+# basic manipulations ----------------------------------------------------------
+```{r}
+df <- USArrests
+
+head(df)
+```
+
+# select cases with Urban population above 50%
+```{r}
+df2 <- df[df$UrbanPop > 50, ]
+
+dim(df2)
+
+head(df2)
+```
+
+# select columns for Murder and Assault rates
+```{r}
+df3 <- df[ , c("Murder", "Assault")]
+
+head(df3)
+```
+
+# add new column for category "Dangerous"
+```{r}
+#  This line creates a new column Dangerous in df that is assigned the value "Dangerous" if the Murder and Assaultvalues for a given row are both greater than their respective means, and "Not too bad" otherwise.
+
+df$Dangerous <- ifelse(df$Murder > mean(df$Murder) & df$Assault > mean(df$Assault),
+                       "Dangerous", "Not too bad")
+
+head(df)
+# This line creates a frequency table of the Dangerous column in df, showing how many rows are classified as "Dangerous" and how many are classified as "Not too bad".
+table(df$Dangerous)
+```
+
+
+# dplyr - do the same job but other way ----------------------------------------
+
+```{r}
+df <- USArrests
+
+head(df)
+
+library(tidyverse)
+
+library(dplyr)
+
+df2_dplyr <- filter(df, UrbanPop > 50)
+
+df3_dplyr <- select(df, Murder, Assault)
+
+df4_dplyr <- mutate(df, Dangerous = ifelse(Murder > mean(Murder) & Assault > mean(Assault),
+                                           "Dangerous", "Not too bad"))
+
+res <- count(df4_dplyr, Dangerous)
+
+res
+```
+
+
+df2_dplyr <- filter(df, UrbanPop > 50): This line creates a new data frame df2_dplyr using the filter function from dplyr. It includes only the rows from df where the UrbanPop column is greater than 50.
+
+df3_dplyr <- select(df, Murder, Assault): This line creates a new data frame df3_dplyr using the select function from dplyr. It includes only the Murder and Assault columns from df.
+
+df4_dplyr <- mutate(df, Dangerous = ifelse(Murder > mean(Murder) & Assault > mean(Assault), "Dangerous", "Not too bad")): This line creates a new data frame df4_dplyr using the mutate function from dplyr. It adds a new column Dangerous to df that is assigned the value "Dangerous" if the Murder and Assault values for a given row are both greater than their respective means, and "Not too bad" otherwise.
+
+res <- count(df4_dplyr, Dangerous): This line creates a new data frame res using the count function from dplyr. It counts the number of rows in df4_dplyr that are classified as "Dangerous" or "Not too bad" based on the Dangerous column.
+
+res: This line displays the res data frame, which shows the count of rows classified as "Dangerous" and "Not too bad".
+
+```{r}
+df5_dplyr <- arrange(df4_dplyr, UrbanPop)
+
+head(df5_dplyr)
+```
+This code creates a new data frame df5_dplyr using the arrange function from dplyr. It arranges the rows of 
+df4_dplyr in ascending order based on the UrbanPop column.
+
+The head(df5_dplyr) function is then used to display the first few rows of the sorted data frame. This will show the rows with the lowest UrbanPop values at the top, and the rows with the highest UrbanPop values at the bottom.
+
+```{r}
+df5_dplyr <- arrange(df4_dplyr, Dangerous, desc(UrbanPop))
+
+head(df5_dplyr)
+```
+
+```{r}
+summarise(df, MM = mean(Murder), MSd = sd(Murder))
+```
+
+
+# piping -----------------------------------------------------------------------
+
+# magrittr
+```{r}
+df <- USArrests
+
+head(df)
+```
+
+res <- df %>% summarise(MM = mean(Murder), MSd = sd(Murder))
+
+```{r}
+df %>% summarise(MM = mean(Murder), MSd = sd(Murder))
+```
+
+```{r}
+df %>% 
+  mutate(Dangerous = ifelse(Murder > mean(Murder) & Assault > mean(Assault),
+                            "Dangerous", "Not too bad"),
+         State = rownames(.)) %>%
+  arrange(Dangerous, desc(UrbanPop)) %>%
+  filter(Dangerous == "Not too bad") %>%
+  select(UrbanPop, Murder) %>%
+  plot()
+```
+
+mutate(Dangerous = ifelse(Murder > mean(Murder) & Assault > mean(Assault), "Dangerous", "Not too bad"), State = rownames(.)): This line adds two new columns to the df data frame using the mutate function from dplyr. The Dangerous column is assigned the value "Dangerous" if the Murder and Assault values for a given row are both greater than their respective means, and "Not too bad" otherwise. The State column is assigned the row names of the data frame.
+
+arrange(Dangerous, desc(UrbanPop)): This line arranges the rows of the df data frame in ascending order based on the Dangerous column and then in descending order based on the UrbanPop column.
+
+filter(Dangerous == "Not too bad"): This line filters the rows of the df data frame to include only those that are classified as "Not too bad" based on the Dangerous column.
+
+select(UrbanPop, Murder): This line selects only the UrbanPop and Murder columns from the filtered data frame.
+
+plot(): This line creates a scatter plot of the UrbanPop and Murder columns for the filtered data frame.
+
+Overall, this code uses the dplyr package and the pipe operator %>% to perform a series of data manipulation tasks and then create a plot of the results. The resulting plot shows the relationship between UrbanPop and Murder for the states that are classified as "Not too bad" based on the Dangerous column.
+
+
+
+
+```{r}
+df %>% select(UrbanPop) %>% pull()
+```
+
+%>% pull(): This line pipes the resulting data frame with only the UrbanPop column to the pull function, which extracts the values of that column as a vector.
+
+
+# joining data -----------------------------------------------------------------
+```{r}
+rm(list = ls())
+
+library(dplyr)
+```
+
+```{r}
+producers <- data.frame(   
+  name =  c("Spielberg","Scorsese","Hitchcock","Polanski", "Zemeckis"),    
+  nationality = c("US","US","UK","Poland", "US"),    
+  stringsAsFactors=FALSE)
+```
+
+```{r}
+movies <- data.frame(    
+  surname = c("Spielberg",
+              "Scorsese",
+              "Hitchcock",
+              "Hitchcock",
+              "Spielberg",
+              "Tarantino",
+              "Polanski"),    
+  title = c("Super 8",
+            "Taxi Driver",
+            "Psycho",
+            "North by Northwest",
+            "Catch Me If You Can",
+            "Reservoir Dogs","Chinatown"),                
+  stringsAsFactors=FALSE)
+```
+
+```{r}
+producers
+
+movies
+```
+
+```{r}
+
+merge(producers, movies, by.x = "name", by.y = "surname")
+```
+?merge
+
+This code uses the merge function in R to combine two data frames producers and movies based on a common column name in producers and surname in movies.
+
+Here's a breakdown of the code:merge: This is the beginning of the merge function call.
+
+producers, movies,: These are the two data frames being merged.
+
+by.x = "name", by.y = "surname": These arguments specify the columns in each data frame that will be used to merge the data frames. by.x = "name" indicates that the name column in producers will be used, while by.y = "surname" indicates that the surname column in movies will be used.
+
+
+
+```{r}
+left_join(producers, movies, by = c("name" = "surname"))
+```
+right_join(producers, movies, by = c("name" = "surname"))
+
+inner_join(producers, movies, by = c("name" = "surname"))
+
+full_join(producers, movies, by = c("name" = "surname"))
+
+```{r}
+producers %>% full_join(movies, by = c("name" = "surname"))
+```
+
+
+
+# other functions in dplyr -----------------------------------------------------
+```{r}
+df <- iris
+
+head(df)
+```
+```{r}
+df %>% mutate_if(is.numeric, log) %>% head(10)
+```
+
+df %>% mutate_all(log)
+
+
+
+df %>% summarise_all(mean)
+```{r}
+df %>% summarise_if(is.numeric, mean)
+```
+```{r}
+df %>% summarise_if(is.numeric, list(M = mean, S = sd))
+```
+
+```{r}
+my.cols <- c("Sepal.Length", "Sepal.Width")
+
+df %>% mutate_at(my.cols, sqrt) %>% head(10)
+```
+
+
+df %>% select(my.cols) %>% head(10)
+
+```{r}
+df %>% select_at(my.cols) %>% head(10)
+```
+
+
+# categorical data -----------------------------------------------------------
+
+
+```{r}
+df <- iris
+
+head(df)
+
+summary(df)
+```
+
+```{r}
+table(df$Species)
+# same as
+df %>% count(Species)
+```
+
+
+```{r}
+df <- df %>% mutate(Length = if_else(Sepal.Length > 6, "Long", "Short"))
+
+head(df)
+
+summary(df)
+```
+
+```{r}
+barplot(table(df$Length))
+```
+
+```{r}
+df %>% count(Species, Length)
+```
+
+
+barplot(df %>% count(Species, Length))
+
+?barplot
+
+```{r}
+barplot(n ~ Species + Length, data = df %>% count(Species, Length))
+```
+
+formula: n ~ Species + Length: This formula specifies that the n variable should be plotted on the y-axis, and the Species and Length variables should be plotted on the x-axis.
+
+```{r}
+barplot(n ~ Length + Species, data = df %>% count(Species, Length))
+```
+
+```{r}
+x <- table(df$Length, df$Species)
+x
+```
+```{r}
+barplot(x, legend.text = rownames(x), args.legend = list(x = "topleft"))
+```
+
+
+####
+
+
+# group and aggregate ----------------------------------------------------------
+
+```{r}
+head(df)
+# only work for small data sets
+aggregate(df$Sepal.Length, by = list(df$Species), FUN = mean)
+```
+
+same as
+
+```{r}
+df %>% group_by(Species) %>% summarise(MeanLength = mean(Sepal.Length))
+```
+
+```{r}
+mtcars %>% group_by(am, cyl) %>% summarise(mean_mpg = mean(mpg), n = n())
+```
+
+```{r}
+head(df)
+
+df %>% 
+  group_by(Species, Length) %>% 
+  summarise(MeanWidth = mean(Sepal.Width), MedianWidth = median(Sepal.Width)) 
+```
+
+
+
+
+```{r}
+df <- dslabs::us_contagious_diseases
+
+head(df)
+```
+
+```{r}
+res <- df %>% 
+  group_by(disease, year) %>% # group by disease and year
+  summarise(rate = mean(count / population * 100000)) %>% # calculate rate for each disease and year
+  group_by(disease) %>% # group by disease
+  summarise(mean = mean(rate), sd = sd(rate)) # calculate mean and sd for each disease
+
+res
+```
+
+```{r}
+res <- df %>% 
+  group_by(disease, year) %>% # group by disease and year
+  summarise(rate = mean(count / population * 100000, na.rm = TRUE)) %>% # calculate rate for each disease and year
+  group_by(disease) %>% # group by disease
+  summarise(mean = mean(rate), sd = sd(rate)) # calculate mean and sd for each disease
+
+res
+```
+
+
+
+
+
+####
+
+# long - wide table conversion -------------------------------------------------
+
+```{r}
+rm(list = ls())
+
+
+library(tidyverse)
+
+df <- relig_income
+
+head(df, 5)
+```
+
+
+```{r}
+library(DT)
+
+df <- relig_income
+
+View(df)
+```
+
+```{r}
+df_long <- df %>%
+  pivot_longer(col = -religion, names_to = "Income", values_to = "Counts") # convert to long format, with Income as a new column and Counts as a new column 
+
+head(df_long)
+```
+
+```{r}
+df_wide <- df_long %>%
+  pivot_wider(names_from = "Income", values_from = "Counts")
+
+head(df_wide)
+```
+
+
+
+```{r}
+df <- iris
+
+head(df)
+```
+
+```{r}
+df_long <- df %>%
+  pivot_longer(col = -Species, names_to = "Size.Type", values_to = "Size.cm")
+
+
+head(df_long)
+```
+```{r}
+boxplot(Size.cm ~ Species + Size.Type, data = df_long)
+```
+
+
+
+####
+
+# package purrr ----------------------------------------------------------------
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+df <- mtcars
+head(df)
+```
+
+```{r}
+# apply function to each column
+sapply(df, mean)
+```
+```{r}
+# map function to each column
+df %>% map(mean)
+```
+?map
+
+```{r}
+df %>% map_dbl(mean)
+```
+```{r}
+df %>% map_df(mean)
+```
+the main difference between these two code snippets is the type of output they produce. The first code snippet produces a named numeric vector, while the second code snippet produces a data frame.
+
+
+head(iris)
+```{r}
+iris %>% map_if(is.numeric, mean)
+```
+
+
+This code uses the seq function to generate a sequence of numbers from 1 to 10, and then applies the sqrt function to each element of the sequence using the map_dbl function from the purrr package. The resulting output is a numeric vector of the square roots of the numbers in the sequence.
+```{r}
+seq(1:10) %>% map_dbl(sqrt)
+```
+
+```{r}
+seq(1:10) %>% map_dbl(function(x) sqrt(x))
+```
+
+```{r}
+seq(1:10) %>% map_dbl(~ sqrt(.x))
+```
+
+```{r}
+seq(1:10) %>% map_dbl(~ sqrt(.x) + .x^2 + log(.x))
+```
+
+map_dbl(~ sqrt(.x) + .x^2 + log(.x)): This applies an anonymous function to each element of the sequence using the map_dbl function from the purrr package. The ~ symbol is used to define the anonymous function, which takes a single argument (represented by .x) and applies three operations to it: taking the square root of the element using sqrt, adding the square of the element using .x^2, and taking the natural logarithm of the element using log. The resulting output is a numeric vector of the transformed values.
+Overall, this code is a way to apply a function with multiple operations to each element of a sequence of numbers using the purrr package and the pipe operator %>%. The resulting output is a numeric vector of the transformed values.
+
+
+```{r}
+sqrt(seq(1:10)) + seq(1:10)^2 + log(seq(1:10))
+```
+
+
+```{r}
+df <- mtcars
+
+head(df)
+
+df %>% 
+  group_split(am) %>% 
+  map(~ lm(hp ~ mpg, data = .x)) 
+```
+
+df %>% group_split(am): This line uses the group_split function from the dplyr package to split the df data frame into two groups based on the am variable (automatic vs. manual transmission). The %>% operator is used to pipe the df data frame to the group_split function.
+
+map(~ lm(hp ~ mpg, data = .x)): This line uses the map function from the purrr package to apply the lm function (which fits a linear regression model) to each group of the split data frame. The ~ symbol is used to define an anonymous function that takes a single argument (represented by .x) and applies the lm function to it. The resulting output is a list of two linear regression models, one for each level of the am variable.
+
+```{r}
+df %>% 
+  group_by(am) %>%
+  group_split() %>% 
+  map(~ lm(hp ~ mpg, data = .x)) 
+```
+
+The resulting output is a list of two linear regression models, one for each level of the am variable. The first model is for cars with automatic transmission (am = 0), and the second model is for cars with manual transmission (am = 1). Each model includes the mpg variable as a predictor of the hp variable.

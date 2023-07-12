@@ -1,0 +1,114 @@
+
+# Exercises for week 3 ---------------------------------------------------------
+Data loading, data visualisation, descriptive statistics
+
+
+Please try to complete tasks listed below. Type your code and results 
+interpretations in each section.
+
+
+
+clean up global environment
+```{r}
+rm(list = ls())
+```
+
+
+### Task 1 ---------------------------------------------------------------------
+
+Check your working directory (and/or adjust your working directory) to ensure
+that data file "week03_data_oxygen.csv" is placed in the working directory.
+Then load the data contained in the "week03_data_oxygen.csv" file.
+Provide comments about the data set.
+
+Data information: The oxygen distribution gives important information 
+on the general biochemistry of marine life. The data measures the oxygen 
+saturation (mg/L^10) at 22 marine parks in Australia. 
+
+```{r}
+# load data
+oxygen <- read.csv("data_oxygen.csv")
+# check data
+head(oxygen)
+str(oxygen)
+summary(oxygen)
+dim(oxygen)
+```
+
+
+
+### Task 2 ---------------------------------------------------------------------
+Visualise data distribution by histogram and boxplot
+Take care about a clear and informative titles and axis labels for all 
+your visualisations.
+Provide your comments about the shape of the distribution as a comment.
+
+```{r}
+# histogram
+hist(oxygen$Oxygen, main = "Oxygen distribution", xlab = "Oxygen saturation (mg/L^10)", ylab = "Frequency")
+```
+
+```{r}
+# histogram
+# breaks, bins
+hist(oxygen$Oxygen, breaks= 10, main = "Oxygen distribution", xlab = "Oxygen saturation (mg/L^10)", ylab = "Frequency")
+```
+
+```{r}
+# histogram
+# breaks, bins
+hist(oxygen$Oxygen, breaks= seq(6,15,2), main = "Oxygen distribution", xlab = "Oxygen saturation (mg/L^10)", ylab = "Frequency")
+```
+
+
+
+```{r}
+# histogram
+hist(log(oxygen$Oxygen), breaks= 6, main = "Oxygen distribution", xlab = "Oxygen saturation (mg/L^10)", ylab = "Frequency")
+```
+
+```{r}
+# boxplot
+boxplot(oxygen$Oxygen, main = "Oxygen distribution", ylab = "Oxygen saturation (mg/L^10)")
+```
+
+
+
+### Task 3 ---------------------------------------------------------------------
+
+Calculate descriptive statistics for the data. 
+Get both options for centrality and dispersion measures. 
+Comment what measures are more appropriate for these data, provide 
+an interpretation for these measures.
+
+
+```{r}
+# mean
+mean(oxygen$Oxygen)
+# median
+median(oxygen$Oxygen)
+# range
+range(oxygen$Oxygen)
+# variance
+var(oxygen$Oxygen)
+# standard deviation
+sd(oxygen$Oxygen)
+# interquartile range
+IQR(oxygen$Oxygen)
+```
+
+```{r}
+summary(oxygen$Oxygen)
+```
+
+```{r}
+library(moments)
+moments::skewness(oxygen$Oxygen)
+moments::kurtosis(oxygen$Oxygen)
+```
+
+
+
+
+```{r}
+```

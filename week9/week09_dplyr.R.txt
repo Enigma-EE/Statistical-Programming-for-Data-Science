@@ -1,0 +1,409 @@
+rm(list = ls())
+gc()
+
+
+# basic manipulations ----------------------------------------------------------
+
+df <- USArrests
+
+head(df)
+
+
+# select cases with Urban population above 50%
+
+df2 <- df[df$UrbanPop > 50, ]
+
+dim(df2)
+
+head(df2)
+
+
+# select columns for Murder and Assault rates
+
+df3 <- df[ , c("Murder", "Assault")]
+
+head(df3)
+
+
+# add new column for category "Dangerous"
+
+df$Dangerous <- ifelse(df$Murder > mean(df$Murder) & df$Assault > mean(df$Assault),
+                       "Dangerous", "Not too bad")
+
+head(df)
+
+table(df$Dangerous)
+
+
+
+# dplyr - do the same job but other way ----------------------------------------
+
+
+df <- USArrests
+
+head(df)
+
+library(tidyverse)
+
+library(dplyr)
+
+df2_dplyr <- filter(df, UrbanPop > 50)
+
+df3_dplyr <- select(df, Murder, Assault)
+
+df4_dplyr <- mutate(df, Dangerous = ifelse(Murder > mean(Murder) & Assault > mean(Assault),
+                                           "Dangerous", "Not too bad"))
+
+res <- count(df4_dplyr, Dangerous)
+
+res
+
+
+
+df5_dplyr <- arrange(df4_dplyr, UrbanPop)
+
+head(df5_dplyr)
+
+
+
+
+df5_dplyr <- arrange(df4_dplyr, Dangerous, desc(UrbanPop))
+
+head(df5_dplyr)
+
+
+summarise(df, MM = mean(Murder), MSd = sd(Murder))
+
+
+
+# piping -----------------------------------------------------------------------
+
+# magrittr
+
+df <- USArrests
+
+head(df)
+
+
+df %>% summarise(MM = mean(Murder), MSd = sd(Murder))
+
+
+df %>% 
+  mutate(Dangerous = ifelse(Murder > mean(Murder) & Assault > mean(Assault),
+                            "Dangerous", "Not too bad"),
+         State = rownames(.)) %>%
+  arrange(Dangerous, desc(UrbanPop)) %>%
+  filter(Dangerous == "Not too bad") %>%
+  select(UrbanPop, Murder) %>%
+  plot()
+
+
+
+df %>% select(UrbanPop) %>% pull()
+
+
+
+
+
+# joining data -----------------------------------------------------------------
+
+rm(list = ls())
+
+library(dplyr)
+
+
+
+producers <- data.frame(   
+  name =  c("Spielberg","Scorsese","Hitchcock","Polanski", "Zemeckis"),    
+  nationality = c("US","US","UK","Poland", "US"),    
+  stringsAsFactors=FALSE)
+
+movies <- data.frame(    
+  surname = c("Spielberg",
+              "Scorsese",
+              "Hitchcock",
+              "Hitchcock",
+              "Spielberg",
+              "Tarantino",
+              "Polanski"),    
+  title = c("Super 8",
+            "Taxi Driver",
+            "Psycho",
+            "North by Northwest",
+            "Catch Me If You Can",
+            "Reservoir Dogs","Chinatown"),                
+  stringsAsFactors=FALSE)
+
+
+producers
+
+movies
+
+merge(producers, movies, by.x = "name", by.y = "surname")
+
+?merge
+
+
+
+
+left_join(producers, movies, by = c("name" = "surname"))
+
+right_join(producers, movies, by = c("name" = "surname"))
+
+inner_join(producers, movies, by = c("name" = "surname"))
+
+full_join(producers, movies, by = c("name" = "surname"))
+
+
+producers %>% full_join(movies, by = c("name" = "surname"))
+
+
+
+
+# other functions in dplyr -----------------------------------------------------
+
+df <- iris
+
+head(df)
+
+df %>% mutate_if(is.numeric, log) %>% head(10)
+
+df %>% mutate_all(log)
+
+
+
+df %>% summarise_all(mean)
+
+df %>% summarise_if(is.numeric, mean)
+
+df %>% summarise_if(is.numeric, list(M = mean, S = sd))
+
+
+
+my.cols <- c("Sepal.Length", "Sepal.Width")
+
+df %>% mutate_at(my.cols, sqrt) %>% head(10)
+
+
+df %>% select(my.cols) %>% head(10)
+
+
+df %>% select_at(my.cols) %>% head(10)
+
+
+
+# categorical data -----------------------------------------------------------
+
+
+
+df <- iris
+
+head(df)
+
+summary(df)
+
+
+table(df$Species)
+
+df %>% count(Species)
+
+
+df <- df %>% mutate(Length = if_else(Sepal.Length > 6, "Long", "Short"))
+
+head(df)
+
+summary(df)
+
+
+
+barplot(table(df$Length))
+
+
+
+df %>% count(Species, Length)
+
+
+
+barplot(df %>% count(Species, Length))
+
+?barplot
+
+
+barplot(n ~ Species + Length, data = df %>% count(Species, Length))
+
+
+barplot(n ~ Length + Species, data = df %>% count(Species, Length))
+
+
+
+x <- table(df$Length, df$Species)
+x
+
+barplot(x, legend.text = rownames(x), args.legend = list(x = "topleft"))
+
+
+
+####
+
+
+# group and aggregate ----------------------------------------------------------
+
+
+head(df)
+
+aggregate(df$Sepal.Length, by = list(df$Species), FUN = mean)
+
+
+df %>% group_by(Species) %>% summarise(MeanLength = mean(Sepal.Length))
+
+
+mtcars %>% group_by(am, cyl) %>% summarise(mean_mpg = mean(mpg), n = n())
+
+
+
+head(df)
+
+df %>% 
+  group_by(Species, Length) %>% 
+  summarise(MeanWidth = mean(Sepal.Width), MedianWidth = median(Sepal.Width)) 
+
+
+
+
+
+
+df <- dslabs::us_contagious_diseases
+
+head(df)
+
+res <- df %>% 
+  group_by(disease, year) %>%
+  summarise(rate = mean(count / population * 100000)) %>%
+  group_by(disease) %>%
+  summarise(mean = mean(rate), sd = sd(rate))
+
+res
+
+
+
+
+####
+
+# long - wide table conversion -------------------------------------------------
+
+
+rm(list = ls())
+
+
+library(tidyverse)
+
+df <- relig_income
+
+head(df, 5)
+
+
+df_long <- df %>%
+  pivot_longer(col = -religion, names_to = "Income", values_to = "Counts")
+
+
+head(df_long)
+
+
+
+df_wide <- df_long %>%
+  pivot_wider(names_from = "Income", values_from = "Counts")
+
+head(df_wide)
+
+
+
+
+
+df <- iris
+
+head(df)
+
+df_long <- df %>%
+  pivot_longer(col = -Species, names_to = "Size.Type", values_to = "Size.cm")
+
+
+head(df_long)
+
+boxplot(Size.cm ~ Species + Size.Type, data = df_long)
+
+
+
+
+####
+
+# package purrr ----------------------------------------------------------------
+
+
+rm(list = ls())
+
+
+library(tidyverse)
+
+
+
+df <- mtcars
+
+head(df)
+
+sapply(df, mean)
+
+
+df %>% map(mean)
+
+?map
+
+df %>% map_dbl(mean)
+
+
+df %>% map_df(mean)
+
+
+
+
+head(iris)
+
+iris %>% map_if(is.numeric, mean)
+
+
+
+
+
+seq(1:10) %>% map_dbl(sqrt)
+
+
+seq(1:10) %>% map_dbl(function(x) sqrt(x))
+
+
+seq(1:10) %>% map_dbl(~ sqrt(.x))
+
+
+seq(1:10) %>% map_dbl(~ sqrt(.x) + .x^2 + log(.x))
+
+
+sqrt(seq(1:10)) + seq(1:10)^2 + log(seq(1:10))
+
+
+
+
+df <- mtcars
+
+head(df)
+
+df %>% 
+  group_split(am) %>% 
+  map(~ lm(hp ~ mpg, data = .x)) 
+
+
+
+
+df %>% 
+  group_by(am) %>%
+  group_split() %>% 
+  map(~ lm(hp ~ mpg, data = .x)) 
+
+

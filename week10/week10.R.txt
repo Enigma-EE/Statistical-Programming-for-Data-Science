@@ -1,0 +1,228 @@
+
+rm(list = ls())
+
+library(tidyverse)
+
+# plot() -----------------------------------------------------------------------
+
+
+df <- iris
+
+head(df, 10)
+
+
+
+plot(df$Sepal.Length)
+
+
+
+plot(df$Sepal.Length, type = "l", col = "red")
+
+
+
+plot(x = df$Sepal.Length, y = df$Sepal.Width)
+
+
+
+plot(x = df$Sepal.Length, y = df$Sepal.Width, col = df$Species,
+     xlab = "Sepal Length, cm", ylab = "Sepal Width, cm",
+     main = "Relationship between Sepal Length and Width",
+     ylim = c(0,5))
+
+legend(x = "topright", legend = unique(df$Species), col = 1:length(df$Species), pch = 1)
+
+points(x = df$Petal.Length, y = df$Petal.Width, col = "blue", pch = 16, cex = 3)
+
+lines(x = c(5,7), y = c(2,4), col = "red", lty = 3, lwd = 3)
+
+abline(h = 3, col = "red", lwd = 6, lty = 4)
+
+
+####
+
+hist(df$Sepal.Length)
+
+abline(v = mean(df$Sepal.Length), col = "red", lty = 3)
+
+
+boxplot(Sepal.Length ~ Species, data = df)
+
+abline(h = mean(df$Sepal.Length), col = "red", lty = 3)
+
+abline(v = c(1.5, 2.5), col = "blue")
+
+lines(x = c(1,2,3), 
+      y = group_by(df, Species) %>% summarise(m = mean(Sepal.Length)) %>% pull(),
+      col = "green", lwd = 3, lty = 2)
+
+
+
+####
+
+
+# qplot ------------------------------------------------------------------------
+
+
+rm(list = ls())
+
+graphics.off()
+
+
+df <- iris
+
+head(df, 10)
+
+
+library(ggplot2)
+
+?qplot
+
+
+plot(x = df$Sepal.Length, y = df$Sepal.Width, col=df$Species,
+     xlab = "Sepal Length, cm", ylab = "Sepal Width, cm",
+     main = "Relationship between Sepal Length and Width")
+
+
+qplot(x = df$Sepal.Length, y = df$Sepal.Width, col=df$Species,
+     xlab = "Sepal Length, cm", ylab = "Sepal Width, cm",
+     main = "Relationship between Sepal Length and Width")
+
+
+qplot(data = df, x = Sepal.Length, y = Sepal.Width, col=Species,
+     xlab = "Sepal Length, cm", ylab = "Sepal Width, cm",
+     main = "Relationship between Sepal Length and Width")
+
+
+qplot(x = Sepal.Length, y = Sepal.Width, data = df, facets= Species ~ .,
+      xlab = "Sepal Length, cm", ylab = "Sepal Width, cm",
+      main = "Relationship between Sepal Length and Width")
+
+
+
+qplot(y = Sepal.Length, data = df, geom = "boxplot")
+
+
+
+qplot(y = Sepal.Length, x = Species, data = df, geom = "boxplot")
+
+
+
+qplot(y = Sepal.Length, x = Species, data = df, geom = c("boxplot", "point"))
+
+
+
+qplot(y = Sepal.Length, x = Species, data = df, geom = c("boxplot", "jitter"))
+
+
+
+qplot(x = Sepal.Length, y = Sepal.Width, data = df, facets= Species ~ .,
+      geom = c("point", "smooth", "boxplot"), method = "lm",
+      xlab = "Sepal Length, cm", ylab = "Sepal Width, cm",
+      main = "Relationship between Sepal Length and Width")
+
+
+
+####
+
+
+
+# ggplot() ---------------------------------------------------------------------
+
+
+head(df)
+
+
+ggplot(df)
+
+
+ggplot(df, mapping = aes(x = Sepal.Length, 
+                         y = Sepal.Width, 
+                         colour = Species))
+
+
+ggplot(data = df, mapping = aes(x = Sepal.Length,
+                                y = Sepal.Width,
+                                colour = Species)) +
+  ggtitle("Relationship between Sepal Length and Width") +
+  xlab("Length, cm") + ylab("Width, cm")  +
+  geom_point(size = 10, alpha = 0.5) +
+  geom_point(mapping = aes(x = Petal.Length, y = Petal.Width)) +
+  geom_hline(yintercept = 3, size = 5)
+
+
+ggplot(data = df, mapping = aes(x = Sepal.Length,
+                                y = Sepal.Width,
+                                colour = Species, size = Petal.Length)) + 
+  geom_point()
+
+
+
+df %>% ggplot(aes(x = Sepal.Length)) +
+  geom_histogram()
+
+?geom_histogram
+
+# bins = 20, breaks = seq(4,8,0.2), binwidth = 0.2
+
+
+df %>% ggplot(mapping = aes(x = Sepal.Length)) +
+  geom_histogram() + facet_grid(rows = vars(Species))
+
+
+df %>% ggplot(aes(x = Sepal.Length, y = Species)) + 
+  geom_boxplot() +
+  geom_jitter()         # height = 0.1, width = 0.1
+
+
+gr1 <- df %>% ggplot(aes(x = Sepal.Length, y = Species)) + 
+  geom_boxplot() + geom_jitter()
+
+gr2 <- ggplot(df, aes(x = Sepal.Length, y = Sepal.Width, colour = Species)) +
+  geom_point(size = 2) + geom_smooth()
+
+print(gr1)
+print(gr2)
+
+
+library(ggpubr)
+ggarrange(gr1, gr2)
+
+
+gr1 + theme_cleveland()
+
+gr2 + theme_dark()
+
+
+
+library(ggthemes)
+
+gr2 + theme_economist()
+
+gr2 + theme_wsj()
+
+
+
+library(ggpubr)
+help(package = "ggpubr")
+
+gghistogram(df, x = "Sepal.Length", fill = "Species", add = "mean")
+
+ggboxplot(df, x = "Species", y = "Sepal.Length", width = 0.8, add = "jitter")
+
+
+####
+
+
+# https://www.r-graph-gallery.com/
+
+# https://exts.ggplot2.tidyverse.org/gallery/
+
+
+####
+
+
+
+
+
+
+

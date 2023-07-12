@@ -1,0 +1,423 @@
+---
+title: |
+  | COMP5070_SP2_2023
+  | week11
+author: "Enna H"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r echo = FALSE, include=FALSE}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 8, 
+  fig.asp = 0.618, 
+  out.width = "80%",
+  fig.align = "center", 
+  root.dir = "../",
+  message = FALSE,
+  size = "small"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+pacman::p_load(ggplot2,ggpubr,ggthemes,gridExtra,scales)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+
+
+
+
+# string manipulations ---------------------------------------------------------
+
+# split
+```{r}
+notes <- "String (or a character) is very common data type and a lot of data stored as a simple text."
+
+strsplit(notes, split = " ")
+```
+
+
+```{r}
+notes <- c("String (or a character) is very common data type", "... and a lot of data stored as a simple text.")
+
+temp <- strsplit(notes, split = " ")
+
+table(temp[[1]]) # first element of the list
+```
+
+```{r}
+wap <- readLines("https://www.gutenberg.org/files/2600/2600-0.txt")
+# wap <- readLines("warandpiece.txt", encoding = "UTF-8")
+
+head(wap)
+```
+
+```{r}
+wap.split <- strsplit(wap, split = " ")
+head(wap.split)
+```
+
+```{r}
+temp <- unlist(wap.split)
+
+word.count <- table(temp)
+
+word.count <- sort(word.count, decreasing = TRUE)
+
+head(word.count, 100)
+```
+
+#
+
+
+```{r}
+library("wordcloud")
+wordcloud::wordcloud(words = names(word.count), 
+                     freq = word.count, 
+                     min.freq = 100, max.words = 250, 
+                     random.order=FALSE, rot.per=0.35)
+```
+
+```{r}
+wordcloud2::wordcloud2(word.count, size = 2, color='random-dark')
+```
+
+
+# combine
+
+```{r}
+paste("Good", "morning", "!", sep = "_")
+```
+```{r}
+x <- c("John", "Tim", "Bill")
+paste(x, "is a good student.", sep = " ")
+paste(x, collapse = "_")
+paste(x, "is a good student.", sep = " ", collapse = "; ")
+```
+
+```{r}
+some.data <- rnorm(15)
+
+print(paste("Mean value is ", mean(some.data), " mm.", sep = ""))
+
+print(paste("Mean value is ", round(mean(some.data), 2), " mm.", sep = ""))
+```
+
+```{r}
+sprintf("Mean value is %f mm.", mean(some.data)) # f - float
+
+sprintf("Mean value is %.2f mm. Standard deviation is %.1f.", 
+        mean(some.data), sd(some.data)) 
+```
+
+
+
+# pattern matching
+
+?grep
+
+
+```{r}
+# Define the 'wap' character vector
+wap <- c("How are you", "It's a sunny day", "Nice to meet you", "you are amazing", "Anatole is here")
+
+# Run the grepl function
+print(grepl(pattern = "you", wap[1:3]))
+
+# Run the length(grep()) function
+print(length(grep("Anatole", wap)))
+
+```
+
+
+?grep
+
+wap[1001:1010]
+
+grep(pattern = "you", wap[1001:1010])
+
+grepl(pattern = "you", wap[1001:1010])
+
+length(grep("Anatole", wap))
+
+
+sub(pattern = "�???o", replacement = '"', wap[1001:1010])
+
+gsub(pattern = ",", replacement = "", wap[1001:1010])
+
+
+
+# regular expressions ----------------------------------------------------------
+
+
+```{r}
+test <- "The quick brown fox jumps over the lazy dog."
+
+gsub(pattern = "[aeiou]", replacement = "", x = test)
+```
+
+?regex 
+
+temp <- gregexpr(pattern = "[[:alpha:]]+", text = wap[1001:1010])
+
+regmatches(x = wap[1001:1010], m = temp)
+
+
+#
+
+# https://regexone.com/
+```{r}
+address <- "Barbara Hanrahan Building, 14/18 Fenn Pl, Adelaide SA 5000"
+
+temp <- regexpr(pattern = "\\d", text = address)
+regmatches(x = address, m = temp)
+
+temp <- regexpr(pattern = "\\d+$", text = address)
+regmatches(x = address, m = temp)
+
+temp <- gregexpr(pattern = "[[:upper:]]{2,3}", text = address)
+regmatches(x = address, m = temp)
+
+temp <- gregexpr(pattern = "([[:upper:]]{2,3} \\d+$)", text = address)
+regmatches(x = address, m = temp)
+```
+
+# 
+  
+```{r}
+phone <- "(08) 1234-5678"
+
+temp <- gregexpr(pattern = "[[:digit:]]+", text = phone)
+regmatches(x = phone, m = temp)
+
+
+gsub(pattern = "\\D", replacement = "", x = phone)
+```
+
+####
+
+
+# stringr package --------------------------------------------------------------
+
+```{r}
+library(stringr)
+
+library(tidyverse)
+
+notes <- "String (or a character) is very common data type and a lot of data stored as a simple text."
+
+str_split(notes, pattern = " ")
+
+notes %>% str_split(" ")
+```
+
+```{r}
+str_c("a", "b", "c", sep = "_")
+
+
+some.data <- rnorm(15)
+
+mu <- mean(some.data)
+sigma <- sd(some.data) 
+
+str_glue("Mean value is {mu}. Standard deviation is {sigma}.")
+
+str_glue("Mean value is {round(mu,2)}. Standard deviation is {round(sigma,2)}.")
+
+str_glue("Mean value is {formatC(mu, digits = 3)}. 
+         Standard deviation is {formatC(sd(some.data), digits = 3)}.")
+```
+
+
+
+# patter matching
+
+
+str_detect(string = wap, pattern = "Pierre")
+
+
+sum(str_detect(string = wap, pattern = "Pierre"))
+
+
+
+
+sum(str_count(string = wap, pattern = "Pierre"))
+
+
+sum(str_count(string = wap, pattern = "Pierre") > 2)
+
+
+str_extract(wap, "\\d+")
+
+wap %>% str_extract_all("\\d+") %>% unlist()
+
+
+
+
+
+# formatting
+
+test <- "     This       text     has      way     too    many    spaces. "
+print(test)
+
+str_remove_all(test, pattern = " ")
+
+test <- str_replace_all(test, pattern = "  ", replacement = " ")
+
+str_trim(test)
+
+str_squish(test)
+
+str_to_upper(test)
+
+str_to_lower(test)
+
+str_to_title(test)
+
+
+
+
+
+# web scraping -----------------------------------------------------------------
+```{r}
+my_data <- readLines("https://www.imdb.com/title/tt0088763/")
+
+head(my_data, 20)
+```
+```{r}
+library(rvest)
+library(RSelenium)
+
+rm(list = ls())
+```
+
+```{r}
+html <- read_html("https://www.imdb.com/title/tt0088763/")
+
+
+temp <- html %>% html_element(".sc-bfec09a1-7.dpBDvu")
+temp %>% html_element("ul") %>% html_text(trim = TRUE) -> movie.character
+temp %>% html_element("a") %>% html_text(trim = TRUE) -> movie.actor
+
+```
+
+```{r}
+print(movie.character)
+```
+
+```{r}
+html %>% html_elements("h1") %>% 
+  html_text(trim = TRUE) -> movie.title
+```
+```{r}
+html %>% html_nodes(".ipc-link.ipc-link--baseAlt.ipc-link--inherit-color") %>% 
+  html_text(trim = TRUE) -> temp
+movie.year <- as.numeric(temp[5])
+movie.r <- temp[6]
+```
+##
+```{r}
+html %>% html_nodes(".ipc-metadata-list-item__content-container a") %>% 
+  html_text(trim = TRUE) -> people
+
+movie.director <- people[1]
+```
+
+
+
+
+
+
+## 
+
+```{r}
+grab.movie <- function(url){
+  
+  html <- read_html(url)
+  
+  
+  html %>% html_elements("h1") %>% 
+    html_text(trim = TRUE) -> movie.title
+  
+  temp <- html %>% html_element(".sc-bfec09a1-7.dpBDvu")
+  temp %>% html_element("ul") %>% html_text(trim = TRUE) -> movie.character
+  temp %>% html_element("a") %>% html_text(trim = TRUE) -> movie.actor
+  
+  html %>% html_nodes(".ipc-link.ipc-link--baseAlt.ipc-link--inherit-color") %>% 
+    html_text(trim = TRUE) -> temp
+  movie.year <- as.numeric(temp[5])
+  movie.r <- temp[6]
+  
+  html %>% html_nodes(".ipc-metadata-list-item__content-container a") %>% 
+    html_text(trim = TRUE) -> people
+  
+  movie.director <- people[1]
+
+  ##
+  
+  return(data.frame(title = movie.title,
+                    year = movie.year,
+                    director = movie.director,
+                    rating = movie.r,
+                    actor = movie.actor,
+                    char = movie.character))
+  
+}
+```
+
+```{r}
+url <- "https://www.imdb.com/title/tt0088763/"
+
+grab.movie(url)
+```
+```{r}
+urls <- c("https://www.imdb.com/title/tt0088763/",
+          "https://www.imdb.com/title/tt0096874/",
+          "https://www.imdb.com/title/tt0099088/")
+```
+
+```{r}
+library(foreach)
+result <- foreach(i = urls, .combine = rbind) %do% {
+  print(i)
+  grab.movie(i)
+}
+
+result
+```
+?html_attrs
+
+
+```{r}
+html <- read_html("http://www.unisa.edu.au")
+
+html %>% html_nodes(".start") %>%
+  html_nodes(".right-col-mobile")  %>%
+  html_nodes("p") %>% html_text(trim = TRUE) %>%
+  str_remove_all("\\r") %>% str_remove_all("\\n") %>% str_remove_all("Read more") %>% 
+  str_squish()
+```

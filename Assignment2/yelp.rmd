@@ -1,0 +1,776 @@
+---
+title: |
+  | COMP5070_SP2_2023
+  | Statistical Programming for Data Science
+  | Assignment 2
+author: "Enna H"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r echo = FALSE, include=FALSE}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 8, 
+  fig.asp = 0.618, 
+  out.width = "80%",
+  fig.align = "center", 
+  root.dir = "../",
+  message = FALSE,
+  size = "small"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+pacman::p_load(ggplot2,ggpubr,ggthemes,gridExtra,scales)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+
+
+
+
+## Introduction
+
+As we immerse ourselves in the digital age, online reviews are playing an increasingly pivotal role in shaping the trajectory of businesses. Consumer feedback, more than ever, is at the forefront of shaping the business landscape, and platforms like Yelp are instrumental in this process. It's against this backdrop that we delve into an analysis of the online sentiment encapsulated in Yelp's user reviews. The research will provide insights into user behaviours, revealing patterns and trends that are crucial for businesses and users alike to understand, manage and navigate this influential online space effectively. Through our data-driven approach, we aspire to add a quantitative lens to the qualitative nature of user sentiment.
+
+The report will be structured in several key sections, each offering valuable insights into different facets of the dataset. Starting with a preliminary analysis, we will examine the overall sentiment of reviews, analysing the language and star ratings used, and their relation to the review length. Following this, we will dissect the sentiments expressed in the reviews, scrutinising the distribution and variation of sentiments, with a particular focus on outliers. Moving on, we will explore the relationship between star ratings and review length, as well as their influence on the perceived usefulness of a review. This is followed by a temporal analysis to track changes in review volume over time. Lastly, the report identifies the most impactful users and businesses, considering various criteria such as the number and type of votes received, and improvements in star ratings. The objective is to establish a robust analytical framework that businesses can use to maximise their online presence and understand user behaviours in a more meaningful way.
+
+
+
+```{r echo = FALSE}
+# Read the data into a data frame
+yelp_reviews <- read_csv("yelp_reviews.csv")
+```
+
+```{r echo = FALSE}
+# View the data
+yelp_reviews <- as.data.frame(yelp_reviews)
+```
+
+\newpage
+
+## In-Depth Exploration of Selected Variables in Yelp Reviews Dataset
+
+Having understood the broad overview of the Yelp reviews dataset, we now turn our attention to a more detailed examination. We will delve into the nuances of selected variables, including "Rating", "Review_Length", "Positive_Words", "Negative_Words", and "Net_Sentiment". Our goal is to gain a deeper comprehension of the underlying trends and patterns shaping the dataset and, by extension, users' behaviors and sentiments.
+
+Firstly, we will conduct a summary statistic of the chosen variables and subsequently move onto the visualization of our findings. Let's dive in.
+
+```{r echo = FALSE}
+yelp_eda <- as.data.frame(yelp_reviews[,c("stars", "review_length","pos_words","neg_words", "net_sentiment")])
+
+# Change variable names
+colnames(yelp_eda) <- c("Rating", "Review_Length", "Positive_Words", "Negative_Words", "Net_Sentiment")
+
+
+skim(yelp_eda) %>%
+  dplyr::select(skim_type, skim_variable, n_missing, numeric.mean, numeric.sd, numeric.p0,  numeric.p50, numeric.p100) %>%
+  mutate_at(vars(starts_with("numeric.")), ~sprintf("%.2f", .)) %>%
+  kable(caption = "Summary Statistics for Selected Variables in Yelp Reviews Dataset")
+```
+
+
+Table 1 provides a statistical summary of our chosen variables: "Rating", "Review_Length", "Positive_Words", "Negative_Words", and "Net_Sentiment". The data shows an average rating of around 3.74 stars, suggesting overall favorable reviews by users. Interestingly, the average review length is about 125 characters, indicating a preference for succinct reviews.
+
+Intriguingly, reviews typically contain roughly seven positive words compared to just two negative words on average, reaffirming the impression of generally positive reviews. The average net sentiment, determined as the difference between the count of positive and negative words, is approximately 4.52, denoting a mostly positive sentiment in the reviews. However, the presence of potential outliers in the data calls for a more thorough analysis.
+
+Figure 1 illuminates the distribution of ratings and their correlation with review lengths. As observed, a significant number of reviews are in the 3 to 5-star range, with 5-star ratings being the most frequent. This further reemphasizes the overall positive sentiments expressed in the reviews.
+
+The correlation between the ratings and review lengths is depicted through a violin plot. It showcases an intriguing pattern: the review length tends to decrease as the rating improves, indicating that users giving lower ratings often write more extensively to detail their experiences.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+
+# Calculate bin width
+bin_width <- diff(range(yelp_eda$Rating)) / 12
+
+# Histogram of Rating
+ggplot(yelp_eda, aes(x = Rating)) +
+  geom_histogram(fill = "steelblue", binwidth = bin_width) +
+  theme_minimal() +
+  labs(title = "Distribution of Rating", x = "Rating", y = "Frequency") +
+  scale_y_continuous(labels = scales::comma)
+
+```
+
+
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Create a new variable with desired levels as a factor
+yelp_eda <- yelp_eda %>%
+  mutate(Rating_Group = factor(Rating, levels = 1:5))
+# Violin plot of Rating_Group vs. Review_Length
+# Calculate statistics for each Rating_Group
+stat_summary_data <- yelp_eda %>%
+  group_by(Rating_Group) %>%
+  summarise(
+    Mean = mean(Review_Length),
+    Median = median(Review_Length),
+    Q1 = quantile(Review_Length, 0.25),
+    Q3 = quantile(Review_Length, 0.75)
+  )
+# Violin plot with statistics. Set trim = 0 to exclude outliers
+ggplot(yelp_eda, aes(x = Rating_Group, y = Review_Length, fill = Rating_Group)) +
+  geom_violin(alpha = 0.7, trim = 0) + 
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "black") +
+  stat_summary(fun = median, geom = "point", shape = 21, size = 2, fill = "white") +
+  stat_summary(fun.data = median_hilow, geom = "errorbar", width = 0.2) +
+  labs(title = "Rating and Review Length",
+       x = "Rating", y = "Review Length") +
+  theme_minimal() + scale_fill_brewer()
+```
+**Figure 1.** Visualizing the Distribution of Ratings and Correlation with Review Length.
+
+
+**Preliminary Impressions from Detailed Analysis**
+
+This in-depth exploration of our Yelp reviews dataset offers a comprehensive understanding of user sentiment. The predominance of positive reviews and greater use of positive words reaffirm the overall upbeat trend. While the dataset has some outliers, they do not significantly impact the largely positive sentiment. Interestingly, the inverse correlation between review length and rating provides a key insight into user behavior, suggesting a tendency among users to elaborate more on negative experiences. We anticipate that a more granular analysis of this dataset will reveal additional interesting trends and patterns, offering valuable insights for businesses on Yelp.
+
+\newpage
+
+## Understanding Review Sentiments Through Word Counts
+
+To better grasp the overall sentiment of Yelp reviews, we're going to examine the number of positive and negative words used in each review. By doing so, we can understand how users generally feel about the businesses they review on Yelp.
+
+Let's start by creating tables that count both positive and negative words in each review and visualize the first 20 entries to get a general idea of sentiment trends.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE, out.width = "50%", out.height="60%"}
+yelp_eda %>%
+  count(Positive_Words) %>%
+  tidy() %>%
+  mutate_at(vars(mean, sd, trimmed, skew, kurtosis, se), ~sprintf("%.2f", .)) %>%
+  kable(caption = "Summary Statistics for Positive Words in the Yelp Reviews Dataset")
+```
+
+```{r echo = FALSE, warning=FALSE, message=FALSE, out.width = "50%", out.height="60%"}
+yelp_eda %>%
+  count(Negative_Words) %>%
+  tidy() %>%
+  mutate_at(vars(mean, sd, trimmed, skew, kurtosis, se), ~sprintf("%.2f", .)) %>%
+  kable(caption = "Summary Statistics for Negative Words in the Yelp Reviews Dataset")
+
+```
+
+From these tables, we can immediately observe that reviewers tend to use more positive words compared to negative ones. This could suggest that businesses on Yelp are generally seen favorably by their reviewers.
+
+```{r echo = FALSE}
+# Create table of counts of positive words per review
+positive_words_table <- yelp_eda %>%
+  count(Positive_Words)
+```
+```{r echo = FALSE}
+# Create table of counts of negative words per review
+negative_words_table <- yelp_eda %>%
+  count(Negative_Words) 
+```
+
+Let's break this down further:
+
+Positive Words: On average, a review contains around 42 positive words. Although there is some fluctuation (as seen from the standard deviation of 25), most reviews hover around this number. This suggests that users typically use a moderate number of positive words in their reviews.
+
+Negative Words: Similarly, the average review has around 28 negative words. While there is also some variation here (with a standard deviation of 17), it's clear that reviews contain fewer negative words compared to positive ones.
+
+**Table 4.** The counts of numbers of positive words per review and the counts of numbers of negative words per review. 
+```{r echo = FALSE, include=FALSE}
+kable(head(positive_words_table, 20), caption = "The first 20 entries of the table of counts of positive words per review") 
+
+kable(head(negative_words_table, 20), caption = "The first 20 entries of the table of counts of negative words per review")
+```
+
+| Positive_Words | n     | Negative_Words | n     |
+|---------------:|------:|---------------:|------:|
+|              0 | 50339 |              0 | 436419|
+|              1 | 103321|             1 | 340959|
+|              2 | 140506|              2 | 235540|
+|              3 | 162600|              3 | 161944|
+|              4 | 164596|              4 | 112062|
+|              5 | 151969|              5 | 77610 |
+|              6 | 132809|              6 | 54395 |
+|              7 | 113252|              7 | 38704 |
+|              8 | 94409 |              8 | 28010 |
+|              9 | 78414 |              9 | 20340 |
+|             10 | 64375 |             10 | 14880 |
+|             11 | 52484 |             11 | 10980 |
+|             12 | 43092 |             12 | 8302  |
+|             13 | 35415 |             13 | 6341  |
+|             14 | 29489 |             14 | 4749  |
+|             15 | 24467 |             15 | 3744  |
+|             16 | 20168 |             16 | 2938  |
+|             17 | 16812 |             17 | 2164  |
+|             18 | 13975 |             18 | 1810  |
+|             19 | 11732 |             19 | 1459  |
+
+One interesting thing to note is that both positive and negative words tend to follow a similar distribution. This suggests that while the total number of positive and negative words may differ, the way they are spread across reviews is quite similar.
+
+Now let's visualize these word counts to better understand these trends:
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Plot the first 20 entries of each table
+plot_positive_words <- ggplot(positive_words_table[1:20, ], aes(x = Positive_Words, y = n)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Counts of Positive Words per Review", x = "Positive Words", y = "Count") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma)
+
+plot_negative_words <- ggplot(negative_words_table[1:20, ], aes(x = Negative_Words, y = n)) +
+  geom_bar(stat = "identity", fill = "#8f1c03e9") +
+  labs(title = "Counts of Negative Words per Review", x = "Negative Words", y = "Count") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma)
+
+
+# Subset the first 20 entries from positive_words_table
+top_20_positive_words <- head(positive_words_table, 20)
+
+# Subset the first 20 entries from negative_words_table
+top_20_negative_words <- head(negative_words_table, 20)
+
+# Combine the two tables into a new table
+combined_top_20 <- data.frame(
+  Positive_Words = top_20_positive_words$Positive_Words,
+  Positive_Count = top_20_positive_words$n,
+  Negative_Words = top_20_negative_words$Negative_Words,
+  Negative_Count = top_20_negative_words$n
+)
+
+# the top 20 positive and negative words
+top_20_sca <- ggplot(combined_top_20) +
+  geom_point(aes(Positive_Words, Positive_Count), size = 2, color = "steelblue") +
+  geom_point(aes(Negative_Words, Negative_Count), size = 2, color = "#8f1c03e9") +
+  labs(title = "Both positive and negative", x = "Words", y = "Count") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma)
+
+# Combine the positive and negative word tables into one data frame
+combined_word <- rbind(
+  data.frame(Word_Type = "Positive", Count = positive_words_table$Positive_Words, Frequency = positive_words_table$n),
+  data.frame(Word_Type = "Negative", Count = negative_words_table$Negative_Words, Frequency = negative_words_table$n)
+)
+
+# Adjust x-axis range and add breaks for better visibility
+words_plot <- ggplot(combined_word, aes(x = Count, y = Frequency, fill = Word_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "All words counts per review",x = "Word Count", y = "Frequency", fill = "Word Type") +
+  scale_fill_manual(values = c("Positive" = "steelblue", "Negative" = "#8f1c03e9")) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 350000), labels = function(x) format(x, scientific = FALSE)) +
+  scale_x_continuous(limits = c(0, 35), breaks = seq(0, 100, by = 10))
+
+
+# Display the plots
+grid.arrange(plot_positive_words, plot_negative_words, top_20_sca, words_plot, ncol = 2)
+```
+**Figure 2.** The counts of positive words per review and the counts of negative words per review.
+
+From these visualizations, we can draw a few conclusions:
+
+1. Reviews typically contain a small to moderate number of positive words. The number of reviews tends to decrease as the number of positive words increases.
+
+2. A similar trend can be seen with negative words, with most reviews containing a small number of such words.
+
+3. Comparing positive and negative words directly, we can see that reviews generally contain more positive words.
+
+4. When looking at the total word count across all reviews, it's clear that positive words are used more frequently than negative ones.
+
+In conclusion, both the data and visualizations suggest that reviewers on Yelp tend to express more positive sentiments than negative ones. This insight can be incredibly valuable for businesses looking to understand their customer feedback on Yelp better. It's also a useful starting point for more in-depth analyses, like examining the specific positive and negative words that are used most often.
+
+
+\newpage
+
+
+## An In-Depth Look at Reviews Sentiment
+
+To understand how customers feel about businesses on Yelp, we analyzed the sentiment expressed in the reviews. For context, we calculated a "net sentiment score" for each review, which reflects the balance between positive and negative words used.
+
+```{r echo = FALSE}
+# Create table of counts of positive words per review
+Net_Sentiment_table <- yelp_eda %>%
+  count(Net_Sentiment)
+```
+
+```{r echo = FALSE, warning=FALSE, message=FALSE, out.width = "50%", out.height="60%"}
+yelp_eda %>%
+  count(Net_Sentiment) %>%
+  tidy() %>%
+  mutate_at(vars(mean, sd, trimmed, skew, kurtosis, se), ~sprintf("%.2f", .)) %>%
+  kable(caption = "Summary Statistics for Net Sentiment in the the Yelp reviews dataset")
+```
+
+
+Let's take a look at the big picture first. On average, reviews on Yelp are mostly positive, with an average net sentiment score of about 18 (on a scale that goes from -59, extremely negative, to 80, extremely positive). It's important to note, however, that the sentiment scores vary quite a bit from review to review.
+
+To give an idea of this variation, imagine a group of people asked to guess the number of candies in a jar. If everyone's guesses were close to each other, we would say there's low variability. But if some guessed very low and others very high, that's high variability. In the case of our Yelp reviews, there's a moderate level of variability. This means that while the average sentiment leans positive, there are still plenty of reviews that are neutral or negative.
+
+To better understand this, we grouped the reviews into categories based on their sentiment scores, similar to putting the candy jar guesses into buckets. Most reviews had a relatively neutral sentiment, falling within the "-10 to 10" category, meaning they had a similar number of positive and negative words. But a significant portion of reviews fell in the "10 to 20" and "20 to 40" categories, indicating a generally positive sentiment.
+
+```{r echo = FALSE, include=FALSE}
+# Define the bin boundaries
+bins <- c(-Inf, -20, -10, 10, 20, 40, Inf)
+
+# Create a new variable for the bin labels
+yelp_eda <- yelp_eda %>%
+  mutate(Sentiment_Bin = cut(Net_Sentiment, breaks = bins, labels = c("< -20", "-20 to -10", "-10 to 10", "10 to 20", "20 to 40", "> 40"), include.lowest = TRUE))
+
+# Summarize the counts within each bin
+Net_Sentiment_summary <- yelp_eda %>%
+  count(Sentiment_Bin) %>%
+  arrange(match(Sentiment_Bin, c("< -20", "-20 to -10", "-10 to 10", "10 to 20", "20 to 40", "> 40")))
+
+# Print the summarized table
+kable(Net_Sentiment_summary)
+```
+
+
+```{r echo = FALSE, include=FALSE}
+# Define the new bin boundaries with increased number of bins
+bins <- c(-Inf, -40, -30, -20, -10, 0, 10, 20, 30, 40, Inf)
+
+# Create a new variable for the bin labels
+yelp_eda <- yelp_eda %>%
+  mutate(Sentiment_Bin = cut(Net_Sentiment, breaks = bins, labels = c("< -40", "-40 to -30", "-30 to -20", "-20 to -10", "-10 to 0", "0 to 10", "10 to 20", "20 to 30", "30 to 40", "> 40"), include.lowest = TRUE))
+
+# Summarize the counts within each bin
+Net_Sentiment_summary <- yelp_eda %>%
+  count(Sentiment_Bin) %>%
+  arrange(match(Sentiment_Bin, c("< -40", "-40 to -30", "-30 to -20", "-20 to -10", "-10 to 0", "0 to 10", "10 to 20", "20 to 30", "30 to 40", "> 40")))
+
+# Print the updated summarized table
+kable(Net_Sentiment_summary)
+```
+
+**Table 6.** The counts of net sentiment by bin in the the Yelp reviews dataset.
+
+| Sentiment_Bin | n      | Sentiment_Bin | n      |
+|--------------:|-------:|--------------:|-------:|
+|         < -20 |    206 |         < -40 |      3 |
+|   -20 to -10  |   3895 |   -40 to -30  |     16 |
+|   -10 to 10   | 1399464 |   -30 to -20  |    187 |
+|   10 to 20    |  145722 |   -20 to -10  |   3895 |
+|   20 to 40    |   19302 |   -10 to 0    | 271006 |
+|         > 40  |     675 |   0 to 10     | 1128458|
+|               |        |   10 to 20    |  145722|
+|               |        |   20 to 30    |   16562|
+|               |        |   30 to 40    |    2740|
+
+
+However, it's worth noting that there are some outliers - a few reviews that are either extremely positive or negative. These are like those far-off guesses for the candy jar, few but significant. Even though they're rare, these reviews can strongly affect a business's overall sentiment perception and should be taken into account.
+
+In the chart below, you can see the distribution of these sentiment scores, which illustrates this mix of neutral, positive, and a few highly negative or positive reviews.
+
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+net_sentiment_plot <- ggplot(yelp_eda, aes(x = Net_Sentiment)) +
+  geom_bar(fill = "steelblue") +
+  labs(title = "Net Sentiment Scores Distribution", x = "Net Sentiment", y = "Frequency") +
+  theme_minimal() +
+  scale_x_continuous(limits = c(-20, 50), breaks = seq(-20, 50, by = 10))
+
+net_sentiment_plot
+```
+**Figure 3.** The distribution of net sentiment in the Yelp reviews dataset.
+
+This understanding of review sentiment can be valuable for businesses. It can help them gauge their overall performance, identify any potential issues, and strategize on how to better satisfy their customers.
+
+\newpage
+
+## Insights on Review Length and Star Rating
+
+We wanted to see if there was any correlation between the length of a review and the star rating given by a customer. We broke down the reviews into their star rating categories and looked at the average length of a review in each category.
+
+**Data Representation**
+
+To represent this data, two types of visualisation techniques were employed - a box plot and a bar plot. The box plot provides a detailed view of the distribution of review lengths per star category, showcasing the median, quartiles, and potential outliers in the data. The bar plot, on the other hand, provides a more concise view of the average review length per star category, highlighting the general trend in the data.
+
+We displayed our findings in two ways: a box plot and a bar plot. The box plot gives us an in-depth view into the distribution of review lengths for each star category. It shows us the most common length of reviews (median), how spread out the lengths are (quartiles), and any outliers. The bar plot is a simple representation of the average review length in each star category, which helps us understand the general pattern in the data.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Box Plot with Adjusted Y-Axis Range
+ggplot(yelp_eda, aes(x = as.factor(Rating), y = as.numeric(Review_Length))) +
+  geom_boxplot(fill = "steelblue", outlier.shape = NA) +
+  coord_cartesian(ylim = c(0, quantile(yelp_eda$Review_Length, 0.95))) +
+  labs(title = "Distribution of Review Length by Star Category",
+       x = "Star Category", y = "Review Length") +
+  theme_minimal()
+```
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Bar Plot
+ggplot(yelp_eda, aes(x = as.factor(Rating), y = Review_Length, fill = as.factor(Rating))) +
+  stat_summary(fun = "mean", geom = "bar") +
+  labs(title = "Average Review Length by Star Category",
+       x = "Star Category", y = "Average Review Length") +
+  theme_minimal() + scale_fill_brewer()
+```
+**Figure 4.** The distribution of review length by star category.
+
+The type of average used in this analysis is the arithmetic mean, a measure of central tendency that calculates the sum of all review lengths and divides it by the total number of reviews in each star category. This form of average was chosen due to its ability to provide a fair representation of the typical review length within each category.
+
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Calculate average review length by star category with base R function
+average_lengths <- aggregate(Review_Length ~ Rating, yelp_eda, mean)
+
+# Rename the Rating column for better readability
+levels(average_lengths$Rating) <- c("⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐")
+
+# Rename the columns
+names(average_lengths) <- c("Star Category", "Average Review Length")
+
+# Print the table
+# print(average_lengths)
+```
+
+**Table 7.** Average Review Length by Star Category.
+
+| Star Category | Average Review Length  | 
+|--------------:|-------:|
+|         1 |    153 |  
+|   2  |   154 |  
+|   3   | 141 |   
+|   4   |  125 | 
+|   5  |   105 | 
+
+
+We found an interesting trend: as the star rating goes up, the length of the reviews goes down. This indicates that customers tend to leave shorter reviews when they had a positive experience and rated a restaurant higher. This trend is especially clear in the 5-star category, which has the shortest average review length.
+
+This finding suggests that highly satisfied customers may not provide as much detailed feedback. Such insight could be valuable to businesses wanting to encourage customers to leave more detailed, positive reviews. It also helps potential customers and the broader community interpret Yelp reviews more effectively.
+
+\newpage
+
+## Insights on Review Usefulness, Star Rating, and Review Length
+
+Next, we wanted to understand whether the perceived usefulness of a review is linked to the star rating and the length of the review.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Add columns to yelp_eda
+yelp_eda$user_id <- yelp_reviews$user_id
+yelp_eda$business_id <- yelp_reviews$business_id
+yelp_eda$votes_useful <- yelp_reviews$votes_useful
+yelp_eda$date <- yelp_reviews$date
+
+# Rename the dataframe to yelp
+yelp <- yelp_eda
+# head(yelp)
+```
+
+**Star Rating and Review Usefulness**
+
+We first looked at whether there's a connection between the star rating of a review and how useful other users found it. Here's what we found:
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Calculate the average usefulness of reviews by star rating
+avg_usefulness <- aggregate(votes_useful ~ Rating, data = yelp, FUN = mean)
+
+# Bar Plot
+ggplot(avg_usefulness, aes(x = Rating, y = votes_useful)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Average Usefulness of Reviews by Star Rating",
+       x = "Star Rating", y = "Average Usefulness") +
+  theme_minimal()
+```
+
+**Figure 5:** Average Usefulness of Reviews by Star Rating.
+
+It seems that higher-rated reviews are slightly less useful to others, although this trend isn't very strong. We did, however, find that the star rating does influence how useful a review is to others, albeit not by a lot.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Correlation Analysis
+cor_rating_useful <- cor(yelp$Rating, yelp$votes_useful)
+cor_length_useful <- cor(yelp$Review_Length, yelp$votes_useful)
+
+# cat("Correlation between Rating and Votes Useful:", cor_rating_useful, "\n")
+# cat("Correlation between Review Length and Votes Useful:", cor_length_useful, "\n")
+```
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# ANOVA Test
+anova_u_r <- aov(votes_useful ~ Rating, data = yelp)
+# cat("ANOVA Results for votes useful by Rating:\n")
+# print(summary(anova_u_r))
+
+# Kruskal-Wallis Test
+kruskal_u_r <- kruskal.test(votes_useful ~ Rating, data = yelp)
+# cat("Kruskal-Wallis Test Results for votes useful by Rating:\n")
+# print(kruskal_u_r)
+```
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# ANOVA Test
+anova_u_l <- aov(votes_useful ~ Review_Length, data = yelp)
+# cat("ANOVA Results for votes_useful by Review Length:\n")
+# print(summary(anova_u_l))
+
+# Kruskal-Wallis Test
+kruskal_u_l <- kruskal.test(votes_useful ~ Review_Length, data = yelp)
+# cat("Kruskal-Wallis Test Results for votes_useful by Review Length:\n")
+# print(anova_u_l)
+```
+
+
+\newpage
+
+**Review Length and Review Usefulness**
+
+Then, we looked at whether the length of a review impacts its usefulness.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Add a new column for Review Length Category
+yelp$Review_Length_Category <- cut(yelp$Review_Length, breaks = seq(0, max(yelp$Review_Length, na.rm = TRUE), by = 100), include.lowest = TRUE)
+
+# Calculate the average usefulness of reviews by review length category
+avg_usefulness_length <- aggregate(votes_useful ~ Review_Length_Category, data = yelp, FUN = mean)
+
+
+# Lollipop Plot
+ggplot(avg_usefulness_length, aes(x = Review_Length_Category, y = votes_useful)) +
+  geom_segment(aes(y = 0, yend = votes_useful, xend = Review_Length_Category), color = "steelblue") +
+  geom_point(color = "steelblue",size=5, alpha=0.6) +
+  labs(title = "Average Usefulness of Reviews by Review Length",
+       x = "Review Length", y = "Average Usefulness") +
+  theme_minimal()
+```
+**Figure 6:** Average Usefulness of Reviews by Review Length.
+
+Longer reviews are generally perceived as more useful by other users. This relationship was statistically significant, meaning the length of a review does impact how useful it is perceived by other Yelp users.
+
+In summary, both the star rating and the length of a review seem to influence how useful other users find a review. However, the relationships are not very strong: higher-rated reviews are only slightly less useful, and longer reviews are only moderately more useful.
+
+These findings can help guide Yelp users who want their reviews to be useful to others: they might consider writing more detailed reviews. Businesses looking for useful feedback might also encourage their customers to provide more detailed reviews.
+
+\newpage
+
+## Monitoring Daily Review Trends
+
+Now let's examined how the number of daily reviews on Yelp changed over time. We will counted the reviews for each day. This allowed us to track the changing volume of reviews generated on Yelp each day and how this has changed over time.
+
+Our findings were visualized in two ways:
+
+1. A timeseries analysis graph showing the number of reviews submitted each day over the years.
+2. A similar timeseries analysis graph, but with a 7-day moving average added in blue, giving a smoother overall view of the trends.
+
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Check data type of 'date' column
+date_type <- class(yelp$date)
+# cat("Data type of 'date' column: ", date_type, "\n")
+```
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+library(lubridate)
+
+# Convert the 'date' column to Date class in case it's not
+yelp$date <- as.Date(yelp$date, format = "%d/%m/%Y")
+
+# Count the number of reviews each day
+reviews_per_day <- yelp %>%
+  group_by(date) %>%
+  summarise(count = n())
+```
+
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Create the first plot with raw data
+time_d <- ggplot(reviews_per_day, aes(x = date, y = count)) +
+  geom_line() +
+  labs(x = "Date", y = "Number of Reviews", 
+       title = "Number of Reviews per Day Over Time")
+
+# Create the second plot with 7-day moving average
+reviews_per_day <- reviews_per_day %>%
+  arrange(date) %>%
+  mutate(moving_average_7d = zoo::rollmean(count, 7, fill = NA))
+
+time_w <- ggplot(reviews_per_day, aes(x = date)) +
+  geom_line(aes(y = count), color = "gray") +
+  geom_line(aes(y = moving_average_7d), color = "steelblue") +
+  labs(x = "Date", y = "Number of Reviews", 
+       title = "Number of Reviews and 7-day Moving Average Over Time")
+
+# Arrange the plots side by side
+grid.arrange(time_d, time_w, nrow = 2)
+```
+
+**Figure 7:** Number of Reviews per Day Over Time.  The grey line in both plots represents the daily count of reviews, whereas the blue line in the second plot depicts the 7-day moving average of reviews.
+
+
+Insights from the timeseries analysis reveal a general increase in the number of reviews per day over the years. The trend does indicate a few periods of decline, contributing to some fluctuation in review volume. It is noteworthy to mention that by the end of 2015, the platform was seeing close to 2000 reviews a day. The second graph, with the 7-day moving average, shows that despite some short-term fluctuations, the general trend has been a steady growth in daily reviews.
+
+These trends suggest increased user engagement and trust in Yelp as a reliable source for business reviews. For businesses, it's a signal of the growing importance of maintaining a positive online presence, as customers increasingly turn to platforms like Yelp to inform their choices.
+
+\newpage
+
+## Identifying the Best Users and Businesses on Yelp
+
+Our next step was to identify the best users and businesses on Yelp. For users, looked at the number of 'useful', 'funny', and 'cool' votes they received. User 'kGgAARL2UmvCcTRfiscjug' stood out, receiving the most 'useful' votes. Even when considering a weighted score of all three types of votes, this user remained in the top spot, indicating that their reviews are not only useful, but also entertaining and interesting.
+
+For businesses, focused on average star rating and the total number of reviews. Here, business 'tAdd__IgXQEknDDicEbRgQ' excelled, achieving an impressive 5-star average rating from a substantial 69 reviews. This suggests consistent high-quality service from this business.
+
+Finally, by examining how businesses had improved over time by looking at changes in their average star rating, business 'eGevCRobYnA_HSj60s2EWvQ' stood out, showing a significant increase in its average star rating.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+yelp$useful <- yelp_reviews$votes_useful
+yelp$funny <- yelp_reviews$votes_funny
+yelp$cool <- yelp_reviews$votes_cool
+# head(yelp)
+```
+
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+best_user <- yelp %>%
+  group_by(user_id) %>%
+  summarise(total_votes_useful = sum(votes_useful)) %>%
+  arrange(desc(total_votes_useful))
+
+kable(head(best_user), caption = "Best User by Useful Votes")
+```
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Weights for each factor
+weights <- c(useful = 0.5, funny = 0.3, cool = 0.2)
+
+best_user_advanced <- yelp %>%
+  group_by(user_id) %>%
+  summarise(
+    total_votes_useful = sum(useful),
+    total_votes_funny = sum(funny),
+    total_votes_cool = sum(cool)
+  ) %>%
+  mutate(
+    value_score = weights['useful']*total_votes_useful + 
+                  weights['funny']*total_votes_funny + 
+                  weights['cool']*total_votes_cool
+  ) %>%
+  arrange(desc(value_score))
+kable(head(best_user_advanced), caption = "Best User by Weighted Score")
+```
+
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+best_business <- yelp %>%
+  group_by(business_id) %>%
+  summarise(
+    avg_star_rating = mean(Rating),
+    total_reviews = n()
+  ) %>%
+  filter(total_reviews > 50) %>%
+  arrange(desc(avg_star_rating), desc(total_reviews))
+
+best_business$avg_star_rating <- round(best_business$avg_star_rating, 2)
+kable(head(best_business), caption = "Best Business by Average Star Rating and Total Reviews")
+```
+
+\newpage
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Calculate average star rating for each business over time
+business_rating_over_time <- yelp %>%
+  mutate(year = lubridate::year(date)) %>%
+  group_by(business_id, year) %>%
+  summarise(avg_star_rating = mean(Rating)) %>%
+  arrange(business_id, year)
+
+# Calculate the improvement in rating over time
+business_rating_over_time <- business_rating_over_time %>%
+  group_by(business_id) %>%
+  mutate(improvement = avg_star_rating - lag(avg_star_rating)) %>%
+  summarise(total_improvement = sum(improvement, na.rm = TRUE))
+
+# Join this information with the original best business data frame
+best_business_advanced <- best_business %>%
+  left_join(business_rating_over_time, by = "business_id") %>%
+  arrange(desc(total_improvement))
+
+
+best_business_advanced$avg_star_rating <- round(best_business_advanced$avg_star_rating, 2)
+
+kable(head(best_business_advanced), caption = "Best Business by Improvement Over Time")
+```
+
+The 'best_user' table shows the top users sorted by the sum of 'useful' votes they've received. User 'kGgAARL2UmvCcTRfiscjug' has received the most 'useful' votes with a total of 8785.
+
+The 'best_user_advanced' table, however, considers not only 'useful' votes but also 'funny' and 'cool' votes, giving different weights to each type of vote. User 'kGgAARL2UmvCcTRfiscjug' remains the top user when considering these weights, with a weighted 'value score' of 6911.1.
+
+The 'best_business' table lists the top businesses based on their average star rating and the total number of reviews, but only for businesses with more than 50 reviews. Business 'tAdd__IgXQEknDDicEbRgQ' has an average star rating of 5.00, with a total of 69 reviews, making it the top business by this measure.
+
+Finally, the 'best_business_advanced' table shows businesses that have demonstrated improvement over time. Business 'eGevCRobYnA_HSj60s2EWvQ' stands out with a total improvement of 4.00 in its average star rating, even though its overall average star rating is 4.06.
+
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Plotting 'best_user'
+best_user_plot <- ggplot(head(best_user, 20), aes(x = reorder(user_id, -total_votes_useful), y = total_votes_useful)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Total 'Useful' Votes by User (Top 20)", x = "User ID", y = "Total 'Useful' Votes") +
+  theme_minimal()
+
+# Plotting 'best_user_advanced'
+best_user_advanced_plot <- ggplot(head(best_user_advanced, 20), aes(x = reorder(user_id, -value_score), y = value_score)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Weighted Score by User (Top 20)", x = "User ID", y = "Weighted Score") +
+  theme_minimal()
+
+# Display the plots
+grid.arrange(best_user_plot, best_user_advanced_plot, nrow = 2)
+```
+**Figure 8.** The top 20 users according to the different ranking metrics
+
+```{r echo = FALSE, warning=FALSE, message=FALSE}
+# Plotting 'best_business'
+best_business_plot <- ggplot(head(best_business, 20), aes(x = reorder(business_id, -avg_star_rating), y = avg_star_rating)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Average Star Rating by Business (Top 20)", x = "Business ID", y = "Average Star Rating") +
+  theme_minimal()
+
+# Plotting 'best_business_advanced'
+best_business_advanced <- ggplot(head(best_business_advanced, 20), aes(x = reorder(business_id, -total_improvement), y = total_improvement)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Total Improvement in Star Rating by Business (Top 20)", x = "Business ID", y = "Total Improvement") +
+  theme_minimal()
+
+# Display the plots
+grid.arrange(best_business_plot, best_business_advanced, nrow= 2)
+```
+**Figure 9.** The top 20 businesses according to the different ranking metrics.
+
+Taken together, these analyses highlight the multi-dimensional nature of success on Yelp. High-quality service and engaging, useful reviews are both vital. Moreover, businesses that strive to improve over time are rewarded with better ratings, suggesting that both businesses and users need to be proactive and dedicated to excel on this platform.
+
+
+\newpage
+
+
+## Conclusion
+
+Through our comprehensive analysis of Yelp's user reviews, we have unearthed a myriad of insights that shed light on the complex dynamics of online sentiment. It's evident that Yelp reviewers exhibit a tendency to lean towards positivity, with the vast majority of reviews expressing neutral to positive sentiments. The significance of this finding cannot be overstated as it highlights the overarching tone of Yelp's online discourse, providing businesses with an invaluable reference point in understanding their online feedback.
+
+Noteworthy is the inverse relationship between star ratings and review length. Customers seem to be more verbose when their experiences are unsatisfactory. Thus, a longer review could be indicative of a less positive dining experience. Businesses could use this insight to improve their services by giving more attention to the detailed feedback in longer reviews.
+
+We also discovered that review usefulness is positively correlated with review length, but weakly negatively correlated with star ratings. In essence, detailed reviews tend to be deemed more useful by other users. Therefore, users aiming to offer useful feedback and businesses aiming for helpful feedback should focus on the provision and elicitation of detailed reviews.
+
+The analysis of review volume over time unveiled a promising trend for Yelp and its registered businesses. There's a steady increase in user engagement over the years, reinforcing the growing relevance and trust in the platform as a credible source of business reviews. For businesses, this means that managing their online reputation on Yelp is becoming more critical than ever before.
+
+Lastly, our identification of top users and businesses provided insights into how various factors such as the number and type of votes received, and improvements in star ratings contribute to the prominence of a user or business within the Yelp community. This understanding can guide businesses in strategising their interactions with the platform and its users.
+
+In conclusion, this study affirms the crucial role of online reviews in today's digital age. The behavioural trends and patterns we uncovered in Yelp reviews offer a wealth of practical implications for both Yelp users and businesses. The ability to understand, interpret, and respond to these findings could profoundly influence business strategies, customer experiences, and ultimately, the trajectory of businesses in this online era.

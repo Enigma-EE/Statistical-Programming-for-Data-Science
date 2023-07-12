@@ -1,0 +1,110 @@
+---
+title: |
+  | COMP5070_SP2_2023
+  | week12
+author: "Enna H"
+output:
+  pdf_document: default
+  html_document:
+    theme: spacelab
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+Ctrl + c
+
+
+```{r echo = FALSE, include=FALSE}
+# clear all variables, functions, etc
+# clean up memory
+rm(list=ls())
+# clean up memory
+gc()
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  fig.width = 8, 
+  fig.asp = 0.618, 
+  out.width = "80%",
+  fig.align = "center", 
+  root.dir = "../",
+  message = FALSE,
+  size = "small"
+)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+pacman::p_load(tidyverse, gglm)
+pacman::p_load(knitr,dplyr,AICcmodavg)
+pacman::p_load(inspectdf,tidyr,stringr, stringi,DT)
+pacman::p_load(caret,modelr)
+pacman::p_load(mlbench,mplot)
+pacman::p_load(tidymodels,glmx)
+pacman::p_load(skimr,vip,yardstick,ranger,kknn,funModeling,Hmisc)
+pacman::p_load(ggplot2,ggpubr,ggthemes,gridExtra,scales)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+
+```{r warning=FALSE, include=FALSE}
+packman::p_load(rvest, RSelenium)
+pacman::p_load(shiny, shinydashboard, shinyWidgets, shinyjs, shinyBS, shinyalert, shinyFiles, shinyFeedback, shinyjqui, shinyMobile, shinythemes, shinytoastr, shinyWidgets,DT)
+pacman::p_load(dashboardthemes)
+```
+
+```{r warning=FALSE, include=FALSE}
+library(rvest)
+library(tidyverse)
+library(stringr)
+library(lubridate)
+# Function to scrape data
+scrape_data <- function(state, metric) {
+  url <- paste0("https://covidlive.com.au/report/daily-", metric, "/", state)
+  webpage <- read_html(url)
+
+  # Assuming there's only one table in the page you're interested in
+  # if there are more tables, you might need to subset the list
+  df <- webpage %>%
+    html_table(fill = TRUE) %>%
+    .[[2]] # extract the first table
+
+  df$state <- state
+  df$metric <- metric
+  
+  return(df)
+}
+
+# Scrape data for different states and metrics
+df_vic_cases <- scrape_data("vic", "cases")
+df_nsw_cases <- scrape_data("nsw", "cases")
+df_sa_vaccinations <- scrape_data("sa", "vaccinations")
+
+# Combine all data frames
+df_combined <- bind_rows(df_vic_cases, df_nsw_cases, df_sa_vaccinations)
+
+# Save the combined data
+saveRDS(df_combined, "covid_data.rds")
+
+```
+
+```{r warning=FALSE, include=FALSE}
+# Read the .rds file
+df_loaded <- readRDS("covid_data.rds")
+# View the first few rows of the dataframe
+head(df_loaded)
+
+```
+
+
+
+
+```{r warning=FALSE, include=FALSE}
+# View the last few rows of the dataframe
+tail(df_loaded)
+```
+
