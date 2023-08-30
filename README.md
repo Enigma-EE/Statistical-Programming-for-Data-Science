@@ -3,10 +3,13 @@
 
 **Highlights**
 
+- Job market for Data Scientist in Australia
 https://github.com/Enna2023/Statistical-Programming-for-Data-Science/blob/main/exam/v1/report_exam_3.pdf
 
-[Statistical-Programming-for-Data-Science/Assignment2/yelp.pdf at main · Enna2023/Statistical-Programming-for-Data-Science · GitHub](https://github.com/Enna2023/Statistical-Programming-for-Data-Science/blob/main/Assignment2/yelp.pdf)
+- Summarizing Online Reviews via Sentiment Mining
+https://github.com/Enna2023/Statistical-Programming-for-Data-Science/blob/main/Assignment2/yelp.pdf
 
-[Statistical-Programming-for-Data-Science/assignment1/data/COVID-19_in_Australia.pdf at main · Enna2023/Statistical-Programming-for-Data-Science · GitHub](https://github.com/Enna2023/Statistical-Programming-for-Data-Science/blob/main/assignment1/data/COVID-19_in_Australia.pdf)
+- COVID-19 in Australia
+https://github.com/Enna2023/Statistical-Programming-for-Data-Science/blob/main/assignment1/data/COVID-19_in_Australia.pdf
 
 **Discord** https://discord.gg/VxfgKTHzMw
